@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import {
+  loginAdminUser,
   getPendingTransactions,
   getAllTransactions,
   approveTransaction,
@@ -12,6 +13,20 @@ import {
   updatePaymentConfig,
 } from '../services/admin.service';
 import { sendSuccess, sendError } from '../utils/response';
+
+export async function adminLoginHandler(req: Request, res: Response) {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return sendError(res, 'Vui lòng nhập tài khoản và mật khẩu Admin', 400);
+    }
+
+    const result = await loginAdminUser(username, password);
+    return sendSuccess(res, result, 'Đăng nhập Admin thành công!');
+  } catch (error: any) {
+    return sendError(res, error.message || 'Đăng nhập Admin thất bại', 400);
+  }
+}
 
 export async function getPendingTransactionsHandler(req: Request, res: Response) {
   try {

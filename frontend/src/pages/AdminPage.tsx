@@ -2,18 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { Transaction, User } from '../types';
 import { api } from '../services/api';
 import { triggerHapticImpact, triggerHapticNotification } from '../services/telegram';
-import { ShieldCheck, Check, X, RefreshCw, Copy, Search, Lock, Unlock, Coins } from 'lucide-react';
+import { ShieldCheck, Check, X, RefreshCw, Copy, Search, Lock, Unlock, Coins, KeyRound } from 'lucide-react';
 
 interface AdminPageProps {
   onBackHome: () => void;
   currentUser?: User | null;
+  onAdminAuthenticated?: (user: User) => void;
 }
 
 const ADMIN_TELEGRAM_ID = import.meta.env.VITE_ADMIN_ID || '8780377211';
 
-export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser }) => {
+export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, onAdminAuthenticated }) => {
   const [activeTab, setActiveTab] = useState<'pending' | 'users' | 'stats' | 'settings'>('pending');
   const [txFilter, setTxFilter] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
+
+  // Admin Login State
+  const [adminUsername, setAdminUsername] = useState<string>('admin');
+  const [adminPassword, setAdminPassword] = useState<string>('Admin123@');
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [loginLoading, setLoginLoading] = useState<boolean>(false);
+  const [adminUser, setAdminUser] = useState<User | null>(
+    currentUser && String(currentUser.telegram_id) === String(ADMIN_TELEGRAM_ID) ? currentUser : null
+  );
 
   // Transactions State
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -52,8 +62,28 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser })
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  // Strict Authorization Check
-  const isAdmin = currentUser && String(currentUser.telegram_id) === String(ADMIN_TELEGRAM_ID);
+  const isAdminAuthenticated = Boolean(adminUser && String(adminUser.telegram_id) === String(ADMIN_TELEGRAM_ID));
+
+  const handleAdminLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginLoading(true);
+    setLoginError(null);
+    triggerHapticImpact('medium');
+
+    try {
+      const res = await api.adminLogin(adminUsername, adminPassword);
+      triggerHapticNotification('success');
+      setAdminUser(res.user);
+      if (onAdminAuthenticated) {
+        onAdminAuthenticated(res.user);
+      }
+    } catch (err: any) {
+      triggerHapticNotification('error');
+      setLoginError(err.message || 'Đăng nhập Admin thất bại');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
 
   const loadTransactions = async () => {
     setTxLoading(true);
@@ -109,13 +139,13 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser })
   };
 
   useEffect(() => {
-    if (isAdmin) {
+    if (isAdminAuthenticated) {
       if (activeTab === 'pending') loadTransactions();
       else if (activeTab === 'users') loadUsers();
       else if (activeTab === 'stats') loadStats();
       else if (activeTab === 'settings') loadPaymentConfig();
     }
-  }, [activeTab, txFilter, isAdmin]);
+  }, [activeTab, txFilter, isAdminAuthenticated]);
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -216,23 +246,73 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser })
     }
   };
 
-  // Deny access if not Admin account
-  if (!isAdmin) {
+  // Render Admin Login Form if not yet authenticated as Admin
+  if (!isAdminAuthenticated) {
     return (
-      <div className="flex flex-col min-h-screen px-4 py-12 max-w-md mx-auto items-center justify-center text-center space-y-4">
-        <div className="w-16 h-16 rounded-full bg-red-500/20 text-red-400 border border-red-500/40 flex items-center justify-center text-3xl">
-          🚫
+      <div className="flex flex-col min-h-screen px-4 py-8 max-w-md mx-auto items-center justify-center space-y-5">
+        <div className="w-full card-glass p-6 space-y-5 border-purple-500/40 bg-gradient-to-b from-slate-900 via-slate-900 to-purple-950/30 shadow-2xl text-center">
+          <div className="w-16 h-16 rounded-2xl bg-purple-600/20 text-purple-400 border border-purple-500/40 flex items-center justify-center mx-auto text-3xl shadow-lg shadow-purple-500/20">
+            <KeyRound className="w-8 h-8 text-purple-400" />
+          </div>
+
+          <div className="space-y-1">
+            <h1 className="text-xl font-black text-purple-400 uppercase tracking-wider">
+              ĐĂNG NHẬP QUẢN TRỊ ADMIN
+            </h1>
+            <p className="text-xs text-slate-300 font-semibold">
+              Nhập tài khoản & mật khẩu để truy cập trang quản lý
+            </p>
+          </div>
+
+          {loginError && (
+            <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-bold rounded-xl">
+              {loginError}
+            </div>
+          )}
+
+          <form onSubmit={handleAdminLoginSubmit} className="space-y-3.5 text-left text-xs font-bold text-slate-300">
+            <div className="space-y-1">
+              <label className="block text-slate-300">Tài khoản Admin:</label>
+              <input
+                type="text"
+                value={adminUsername}
+                onChange={(e) => setAdminUsername(e.target.value)}
+                placeholder="Nhập tài khoản (VD: admin)"
+                className="bg-slate-950 border border-slate-700 text-white font-bold p-3 rounded-xl w-full focus:outline-none focus:border-purple-500"
+                required
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-slate-300">Mật khẩu Admin:</label>
+              <input
+                type="password"
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+                placeholder="Nhập mật khẩu (VD: Admin123@)"
+                className="bg-slate-950 border border-slate-700 text-amber-400 font-black p-3 rounded-xl w-full focus:outline-none focus:border-purple-500"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loginLoading}
+              className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-sm shadow-xl shadow-purple-500/25 active:scale-95 transition-all mt-2 flex items-center justify-center gap-2"
+            >
+              <span>🔐 ĐĂNG NHẬP QUẢN TRỊ ADMIN</span>
+            </button>
+          </form>
+
+          <div className="pt-2 border-t border-slate-800">
+            <button
+              onClick={onBackHome}
+              className="text-xs font-bold text-slate-400 hover:text-white underline"
+            >
+              ← Quay lại Trang chủ
+            </button>
+          </div>
         </div>
-        <h1 className="text-xl font-black text-red-400">QUYỀN TRUY CẬP BỊ TỪ CHỐI</h1>
-        <p className="text-xs text-slate-300 font-semibold leading-relaxed">
-          Chỉ tài khoản Admin chính thức (Telegram ID: <strong className="text-amber-400">8780377211</strong>) mới có quyền truy cập vào trang quản trị này.
-        </p>
-        <button
-          onClick={onBackHome}
-          className="px-6 py-3 btn-game-primary text-xs font-black rounded-xl"
-        >
-          ← QUAY LẠI TRANG CHỦ
-        </button>
       </div>
     );
   }

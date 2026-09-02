@@ -49,6 +49,17 @@ export const api = {
     return data;
   },
 
+  adminLogin: async (usernameInput: string, passwordInput: string) => {
+    const data = await request<{ token: string; user: User }>('/admin/login', {
+      method: 'POST',
+      body: JSON.stringify({ username: usernameInput, password: passwordInput }),
+    });
+    if (data.token) {
+      setAuthToken(data.token);
+    }
+    return data;
+  },
+
   getMe: async () => {
     return request<User>('/me');
   },

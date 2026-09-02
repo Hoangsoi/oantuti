@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+  adminLoginHandler,
   getPendingTransactionsHandler,
   getAllTransactionsHandler,
   approveTransactionHandler,
@@ -13,13 +14,16 @@ import {
 } from '../controllers/admin.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { adminMiddleware } from '../middleware/admin.middleware';
-import { adminRateLimiter } from '../middleware/rateLimit.middleware';
+import { adminRateLimiter, authRateLimiter } from '../middleware/rateLimit.middleware';
 import { validateBody } from '../middleware/validate.middleware';
-import { adjustCoinsSchema } from '../validators';
+import { adjustCoinsSchema, adminLoginSchema } from '../validators';
 
 const router = Router();
 
-// Apply auth, strict admin check, and admin rate limiter to ALL admin routes
+// Public Admin Login Route
+router.post('/login', authRateLimiter, validateBody(adminLoginSchema), adminLoginHandler);
+
+// Apply auth, strict admin check, and admin rate limiter to ALL protected admin routes
 router.use(authMiddleware, adminMiddleware, adminRateLimiter);
 
 // Deposit & Withdraw Approval Endpoints

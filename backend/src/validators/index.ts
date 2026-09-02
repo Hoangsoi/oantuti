@@ -5,6 +5,11 @@ export const authSchema = z.object({
   refCode: z.string().max(50).optional(),
 });
 
+export const adminLoginSchema = z.object({
+  username: z.string().min(1, 'Tên đăng nhập không được để trống'),
+  password: z.string().min(1, 'Mật khẩu không được để trống'),
+});
+
 export const playGameSchema = z.object({
   move: z.enum(['rock', 'paper', 'scissors']),
 });

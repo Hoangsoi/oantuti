@@ -107,7 +107,13 @@ export const App: React.FC = () => {
           />
         );
       case 'admin':
-        return <AdminPage currentUser={user} onBackHome={() => navigateTo('home')} />;
+        return (
+          <AdminPage
+            currentUser={user}
+            onAdminAuthenticated={(adminUser) => setUser(adminUser)}
+            onBackHome={() => navigateTo('home')}
+          />
+        );
       case 'result':
         return (
           <ResultPage

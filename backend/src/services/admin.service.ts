@@ -1,5 +1,42 @@
 import { query, pool } from '../database';
 import { Transaction, User } from '../types';
+import jwt from 'jsonwebtoken';
+import { config } from '../config';
+
+export async function loginAdminUser(usernameInput: string, passwordInput: string) {
+  const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+  const adminPassword = process.env.ADMIN_PASSWORD || 'Admin123@';
+  const adminTgId = parseInt(process.env.ADMIN_TELEGRAM_ID || '8780377211', 10);
+
+  if (usernameInput.trim() !== adminUsername || passwordInput.trim() !== adminPassword) {
+    throw new Error('Tài khoản hoặc mật khẩu Admin không chính xác!');
+  }
+
+  // Find or create admin user record in database
+  let adminUserRes = await query<User>('SELECT * FROM users WHERE telegram_id = $1', [adminTgId]);
+  let adminUser: User;
+
+  if (adminUserRes.rows.length === 0) {
+    const insertRes = await query<User>(
+      `INSERT INTO users (telegram_id, first_name, last_name, username, rating, coins, referral_code)
+       VALUES ($1, 'Admin_2026', 'Official', 'ottadmin2026', 1000, 999999, 'REF_ADMIN_8780377211')
+       RETURNING *`,
+      [adminTgId]
+    );
+    adminUser = insertRes.rows[0];
+  } else {
+    adminUser = adminUserRes.rows[0];
+  }
+
+  // Issue JWT Token
+  const token = jwt.sign(
+    { userId: adminUser.id, telegramId: adminUser.telegram_id },
+    config.jwtSecret,
+    { expiresIn: '30d' }
+  );
+
+  return { token, user: adminUser };
+}
 
 export async function getPendingTransactions() {
   const res = await query(
