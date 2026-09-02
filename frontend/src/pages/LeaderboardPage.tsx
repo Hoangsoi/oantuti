@@ -118,7 +118,7 @@ export const LeaderboardPage: React.FC = () => {
                     {top2.wins}W - {top2.losses}L
                   </span>
                   <div className="mt-1 px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-200 font-black text-[11px]">
-                    {top2.rating.toLocaleString()} đ
+                    {top2.rating.toLocaleString()} Elo
                   </div>
                 </div>
               )}
@@ -147,7 +147,7 @@ export const LeaderboardPage: React.FC = () => {
                     {top1.wins}W - {top1.losses}L ({( (top1.wins / Math.max(1, top1.wins + top1.losses)) * 100 ).toFixed(0)}%)
                   </span>
                   <div className="mt-1 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20">
-                    {top1.rating.toLocaleString()} đ
+                    {top1.rating.toLocaleString()} Elo
                   </div>
                 </div>
               )}
@@ -173,7 +173,7 @@ export const LeaderboardPage: React.FC = () => {
                     {top3.wins}W - {top3.losses}L
                   </span>
                   <div className="mt-1 px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-amber-500 font-black text-[11px]">
-                    {top3.rating.toLocaleString()} đ
+                    {top3.rating.toLocaleString()} Elo
                   </div>
                 </div>
               )}
@@ -221,7 +221,7 @@ export const LeaderboardPage: React.FC = () => {
                     </div>
 
                     <div className="px-3 py-1 rounded-xl bg-slate-800 border border-slate-700 text-amber-400 font-black text-xs">
-                      {entry.rating.toLocaleString()} đ
+                      {entry.rating.toLocaleString()} Elo
                     </div>
                   </div>
                 );
