@@ -24,7 +24,7 @@ const SHUFFLE_EMOJIS = ['✊', '✋', '✌️'];
 export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, onFinishRoomMatch, onBackHome, onOpenTopup }) => {
   const [activeTab, setActiveTab] = useState<'menu' | 'lobby'>(initialRoom ? 'lobby' : 'menu');
   const [inputCode, setInputCode] = useState<string>('');
-  const [selectedBet, setSelectedBet] = useState<number>(100);
+  const [selectedBet, setSelectedBet] = useState<number>(5000);
   const [room, setRoom] = useState<Room | null>(initialRoom || null);
 
   useEffect(() => {
@@ -305,12 +305,13 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
 
             <div className="text-left space-y-2">
               <label className="text-xs font-black text-amber-400 uppercase tracking-wider block">
-                CHỌN MỨC CƯỢC PHÒNG:
+                CHỌN HOẶC NHẬP MỨC CƯỢC PHÒNG (XU):
               </label>
-              <div className="grid grid-cols-4 gap-2">
-                {[0, 100, 500, 1000].map((amount) => (
+              <div className="grid grid-cols-3 gap-2">
+                {[1000, 5000, 10000, 50000, 100000, 500000].map((amount) => (
                   <button
                     key={amount}
+                    type="button"
                     onClick={() => setSelectedBet(amount)}
                     className={`py-2 px-1 rounded-xl text-xs font-black transition-all border ${
                       selectedBet === amount
@@ -318,9 +319,21 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
                         : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
                     }`}
                   >
-                    {amount === 0 ? 'TỰ DO' : `${amount} Xu`}
+                    {amount.toLocaleString()} Xu
                   </button>
                 ))}
+              </div>
+
+              <div className="pt-1">
+                <input
+                  type="number"
+                  min={100}
+                  step={100}
+                  placeholder="Hoặc nhập tay số Xu cược tùy chọn (VD: 25000)..."
+                  value={selectedBet || ''}
+                  onChange={(e) => setSelectedBet(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                  className="w-full p-3 bg-slate-950 border border-slate-700 text-amber-400 font-black text-xs rounded-xl focus:outline-none focus:border-amber-500"
+                />
               </div>
             </div>
 
