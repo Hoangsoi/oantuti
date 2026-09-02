@@ -1,0 +1,145 @@
+import React from 'react';
+import { User, ActivePage } from '../types';
+import { Trophy, Swords, Flame, CheckCircle, XCircle, MinusCircle, Percent, Calendar, UserCheck, ShieldCheck } from 'lucide-react';
+
+interface ProfilePageProps {
+  user: User | null;
+  onNavigate?: (page: ActivePage) => void;
+}
+
+export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onNavigate }) => {
+  if (!user) return null;
+
+  const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Người chơi';
+  const avatarUrl = user.photo_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.telegram_id}`;
+
+  const winRate = user.total_matches > 0 ? Math.round((user.wins / user.total_matches) * 100) : 0;
+  const joinDate = new Date(user.created_at).toLocaleDateString('vi-VN');
+
+  return (
+    <div className="flex flex-col min-h-screen px-4 py-6 max-w-md mx-auto pb-24 space-y-4">
+      {/* Title Header */}
+      <div className="flex items-center gap-2">
+        <UserCheck className="w-7 h-7 text-amber-400" />
+        <h1 className="text-2xl font-black text-white tracking-wide">HỒ SƠ CỦA TÔI</h1>
+      </div>
+
+      {/* Main Profile Avatar Card */}
+      <div className="card-glass p-5 text-center flex flex-col items-center border-amber-500/30 bg-gradient-to-b from-slate-800 to-slate-900">
+        <div className="relative mb-3">
+          <img
+            src={avatarUrl}
+            alt={fullName}
+            className="w-20 h-20 rounded-full ring-4 ring-amber-400 object-cover bg-slate-950 shadow-xl"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/bottts/svg?seed=${user.telegram_id}`;
+            }}
+          />
+          <div className="absolute -bottom-1 -right-1 bg-amber-500 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full shadow">
+            VIP
+          </div>
+        </div>
+
+        <h2 className="text-xl font-black text-white">{fullName}</h2>
+        <p className="text-xs font-semibold text-slate-400 mt-0.5">
+          @{user.username || `user_${user.telegram_id}`}
+        </p>
+
+        <div className="mt-4 flex items-center justify-center gap-2 bg-amber-500/10 border border-amber-500/30 px-4 py-1.5 rounded-2xl">
+          <Trophy className="w-5 h-5 text-amber-400" />
+          <span className="text-lg font-black text-amber-400">{user.rating.toLocaleString()} ĐIỂM</span>
+        </div>
+      </div>
+
+      {/* Detailed Game Stats Grid */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="card-glass p-3.5 flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400">
+            <Swords className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-slate-400 uppercase">Tổng số trận</div>
+            <div className="text-lg font-black text-white">{user.total_matches}</div>
+          </div>
+        </div>
+
+        <div className="card-glass p-3.5 flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400">
+            <CheckCircle className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-slate-400 uppercase">Số trận thắng</div>
+            <div className="text-lg font-black text-emerald-400">{user.wins}</div>
+          </div>
+        </div>
+
+        <div className="card-glass p-3.5 flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-red-500/10 text-red-400">
+            <XCircle className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-slate-400 uppercase">Số trận thua</div>
+            <div className="text-lg font-black text-red-400">{user.losses}</div>
+          </div>
+        </div>
+
+        <div className="card-glass p-3.5 flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-slate-500/10 text-slate-400">
+            <MinusCircle className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-slate-400 uppercase">Số trận hòa</div>
+            <div className="text-lg font-black text-slate-300">{user.draws}</div>
+          </div>
+        </div>
+
+        <div className="card-glass p-3.5 flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400">
+            <Percent className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-slate-400 uppercase">Tỷ lệ thắng</div>
+            <div className="text-lg font-black text-purple-400">{winRate}%</div>
+          </div>
+        </div>
+
+        <div className="card-glass p-3.5 flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400">
+            <Flame className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-slate-400 uppercase">Chuỗi thắng Kỷ lục</div>
+            <div className="text-lg font-black text-amber-400">{user.best_streak} trận</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Account Info Footer */}
+      <div className="card-glass p-4 text-xs font-semibold text-slate-400 space-y-2 border-slate-700/60">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-slate-400" />
+            <span>Ngày tham gia:</span>
+          </div>
+          <span className="font-extrabold text-white">{joinDate}</span>
+        </div>
+
+        <div className="flex items-center justify-between pt-1 border-t border-slate-800">
+          <span>Mã giới thiệu:</span>
+          <span className="font-black text-amber-400">{user.referral_code}</span>
+        </div>
+      </div>
+
+      {/* Admin Entrance Button */}
+      {onNavigate && (
+        <button
+          onClick={() => onNavigate('admin')}
+          className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 text-white font-black text-sm border border-purple-400/40 shadow-xl shadow-purple-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+        >
+          <ShieldCheck className="w-5 h-5 text-amber-400" />
+          <span>🛡️ DASHBOARD QUẢN TRỊ ADMIN (DUYỆT NẠP/RÚT)</span>
+        </button>
+      )}
+    </div>
+  );
+};
