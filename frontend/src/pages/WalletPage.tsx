@@ -24,7 +24,7 @@ const POPULAR_BANKS = [
   'VietinBank',
 ];
 
-const ADMIN_TELEGRAM_USERNAME = 'lucky20261102';
+const ADMIN_TELEGRAM_USERNAME = import.meta.env.VITE_ADMIN_USERNAME || 'ottadmin2026';
 
 export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdated, onBackHome }) => {
   const [activeTab, setActiveTab] = useState<'deposit' | 'withdraw' | 'bank' | 'history'>('deposit');

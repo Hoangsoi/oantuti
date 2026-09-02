@@ -13,5 +13,5 @@ export const config = {
   botToken: process.env.BOT_TOKEN || '',
   databaseUrl: process.env.DATABASE_URL || NEON_DEFAULT_URL,
   adminTelegramId: process.env.ADMIN_TELEGRAM_ID || '8780377211',
-  adminTelegramUsername: process.env.ADMIN_TELEGRAM_USERNAME || 'lucky20261102',
+  adminTelegramUsername: process.env.ADMIN_TELEGRAM_USERNAME || 'ottadmin2026',
 };
