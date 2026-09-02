@@ -48,12 +48,14 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
     accountHolder: string;
     usdtAddress: string;
     adminTelegramUsername: string;
+    qrCodeUrl: string;
   }>({
     bankName: '',
     accountNumber: '',
     accountHolder: '',
     usdtAddress: '',
     adminTelegramUsername: '',
+    qrCodeUrl: '',
   });
   const [configLoading, setConfigLoading] = useState<boolean>(false);
 
@@ -812,6 +814,20 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
                   className="bg-slate-900 border border-slate-700 text-purple-400 font-bold p-3 rounded-xl w-full focus:outline-none"
                   required
                 />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block">Link Ảnh Mã QR Ngân Hàng (Tùy chọn):</label>
+                <input
+                  type="text"
+                  placeholder="https://... (Để trống để tự động tạo mã VietQR theo STK)"
+                  value={paymentConfig.qrCodeUrl || ''}
+                  onChange={(e) => setPaymentConfig({ ...paymentConfig, qrCodeUrl: e.target.value })}
+                  className="bg-slate-900 border border-slate-700 text-cyan-300 text-xs font-bold p-3 rounded-xl w-full focus:outline-none"
+                />
+                <p className="text-[10px] text-slate-400 font-normal">
+                  💡 Nếu điền link ảnh QR (Ví dụ ảnh Imgur hoặc Cloudinary), hệ thống sẽ ưu tiên hiển thị ảnh QR này khi khách hàng nạp tiền. Nếu để trống, hệ thống tự động tạo mã VietQR theo STK Ngân Hàng ở trên.
+                </p>
               </div>
 
               <button

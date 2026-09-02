@@ -414,10 +414,14 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
                     THÔNG TIN CHUYỂN KHOẢN ADMIN
                   </h3>
 
-                  {/* VietQR Image Preview */}
+                  {/* VietQR / Custom Admin QR Image Preview */}
                   <div className="flex flex-col items-center justify-center p-3 bg-white rounded-2xl max-w-[200px] mx-auto shadow-xl">
                     <img
-                      src={`https://img.vietqr.io/image/MBBANK-${walletData.adminPayment.accountNumber}-compact2.png?amount=${depositAmount}&accountName=${encodeURIComponent(walletData.adminPayment.accountHolder)}`}
+                      src={
+                        walletData.adminPayment.qrCodeUrl && walletData.adminPayment.qrCodeUrl.trim()
+                          ? walletData.adminPayment.qrCodeUrl
+                          : `https://img.vietqr.io/image/MBBANK-${walletData.adminPayment.accountNumber}-compact2.png?amount=${depositAmount}&accountName=${encodeURIComponent(walletData.adminPayment.accountHolder)}`
+                      }
                       alt="VietQR Admin"
                       className="w-44 h-44 object-contain"
                       onError={(e) => {

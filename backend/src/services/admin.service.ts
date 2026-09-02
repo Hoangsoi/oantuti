@@ -298,6 +298,7 @@ export async function getPaymentConfig() {
     accountNumber: process.env.ADMIN_BANK_ACCOUNT || '999988889999',
     accountHolder: process.env.ADMIN_BANK_HOLDER || 'OAN TU TI OFFICIAL',
     usdtAddress: process.env.ADMIN_USDT_ADDRESS || 'T9yD14Nj9j7xQvL894K1mP5xZ7W8qM3v',
+    qrCodeUrl: process.env.ADMIN_QR_CODE_URL || '',
   };
 }
 
@@ -307,12 +308,14 @@ export async function updatePaymentConfig(data: {
   accountHolder?: string;
   usdtAddress?: string;
   adminTelegramUsername?: string;
+  qrCodeUrl?: string;
 }) {
-  if (data.bankName) process.env.ADMIN_BANK_NAME = data.bankName;
-  if (data.accountNumber) process.env.ADMIN_BANK_ACCOUNT = data.accountNumber;
-  if (data.accountHolder) process.env.ADMIN_BANK_HOLDER = data.accountHolder;
-  if (data.usdtAddress) process.env.ADMIN_USDT_ADDRESS = data.usdtAddress;
-  if (data.adminTelegramUsername) process.env.ADMIN_TELEGRAM_USERNAME = data.adminTelegramUsername;
+  if (data.bankName !== undefined) process.env.ADMIN_BANK_NAME = data.bankName;
+  if (data.accountNumber !== undefined) process.env.ADMIN_BANK_ACCOUNT = data.accountNumber;
+  if (data.accountHolder !== undefined) process.env.ADMIN_BANK_HOLDER = data.accountHolder;
+  if (data.usdtAddress !== undefined) process.env.ADMIN_USDT_ADDRESS = data.usdtAddress;
+  if (data.adminTelegramUsername !== undefined) process.env.ADMIN_TELEGRAM_USERNAME = data.adminTelegramUsername;
+  if (data.qrCodeUrl !== undefined) process.env.ADMIN_QR_CODE_URL = data.qrCodeUrl;
 
   return getPaymentConfig();
 }

@@ -98,6 +98,7 @@ export interface AdminPaymentInfo {
   usdtNetwork: string;
   usdtRate: number; // e.g. 1 USDT = 25000 Xu
   bankRate: number; // e.g. 1000 VNĐ = 1000 Xu
+  qrCodeUrl?: string;
 }
 
 export interface ReferralStat {

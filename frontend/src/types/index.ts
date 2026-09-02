@@ -96,6 +96,7 @@ export interface AdminPaymentInfo {
   usdtNetwork: string;
   usdtRate: number;
   bankRate: number;
+  qrCodeUrl?: string;
 }
 
 export interface WalletData {

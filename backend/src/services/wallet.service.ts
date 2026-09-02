@@ -11,6 +11,7 @@ export function getAdminPaymentInfo(): AdminPaymentInfo {
     usdtNetwork: 'TRC20',
     usdtRate: 25000, // 1 USDT = 25,000 Xu Game
     bankRate: 1,     // 1,000 VNĐ = 1,000 Xu Game
+    qrCodeUrl: process.env.ADMIN_QR_CODE_URL || '',
   };
 }
 
