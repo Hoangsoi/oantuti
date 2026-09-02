@@ -2,15 +2,17 @@ import { query, pool } from '../database';
 import { BankAccount, Transaction, AdminPaymentInfo, User } from '../types';
 import { sendTelegramAdminNotification } from '../utils/telegram';
 
-export const ADMIN_PAYMENT_INFO: AdminPaymentInfo = {
-  bankName: 'MBBank (Ngân Hàng Quân Đội)',
-  accountNumber: '999988889999',
-  accountHolder: 'OAN TU TI OFFICIAL',
-  usdtAddress: 'T9yD14Nj9j7xQvL894K1mP5xZ7W8qM3v',
-  usdtNetwork: 'TRC20',
-  usdtRate: 25000, // 1 USDT = 25,000 Xu Game
-  bankRate: 1,     // 1,000 VNĐ = 1,000 Xu Game
-};
+export function getAdminPaymentInfo(): AdminPaymentInfo {
+  return {
+    bankName: process.env.ADMIN_BANK_NAME || 'MBBank (Ngân Hàng Quân Đội)',
+    accountNumber: process.env.ADMIN_BANK_ACCOUNT || '999988889999',
+    accountHolder: process.env.ADMIN_BANK_HOLDER || 'OAN TU TI OFFICIAL',
+    usdtAddress: process.env.ADMIN_USDT_ADDRESS || 'T9yD14Nj9j7xQvL894K1mP5xZ7W8qM3v',
+    usdtNetwork: 'TRC20',
+    usdtRate: 25000, // 1 USDT = 25,000 Xu Game
+    bankRate: 1,     // 1,000 VNĐ = 1,000 Xu Game
+  };
+}
 
 export async function getWalletInfo(userId: number) {
   const bankRes = await query<BankAccount>('SELECT * FROM bank_accounts WHERE user_id = $1', [userId]);
@@ -19,7 +21,7 @@ export async function getWalletInfo(userId: number) {
   return {
     bankAccount: bankRes.rows[0] || null,
     transactions: txRes.rows,
-    adminPayment: ADMIN_PAYMENT_INFO,
+    adminPayment: getAdminPaymentInfo(),
   };
 }
 
@@ -57,9 +59,10 @@ export async function createDepositRequest(
     throw new Error('Số tiền nạp phải lớn hơn 0');
   }
 
+  const adminPayment = getAdminPaymentInfo();
   let coins = 0;
   if (method === 'usdt') {
-    coins = Math.floor(amount * ADMIN_PAYMENT_INFO.usdtRate);
+    coins = Math.floor(amount * adminPayment.usdtRate);
   } else {
     coins = Math.floor(amount);
   }
@@ -121,9 +124,10 @@ export async function createWithdrawRequest(
       }
     }
 
+    const adminPayment = getAdminPaymentInfo();
     let fiatOrUsdtAmount = coinsAmount;
     if (method === 'usdt') {
-      fiatOrUsdtAmount = coinsAmount / ADMIN_PAYMENT_INFO.usdtRate;
+      fiatOrUsdtAmount = coinsAmount / adminPayment.usdtRate;
     }
 
     // Deduct coins from user balance
