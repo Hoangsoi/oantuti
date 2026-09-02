@@ -3,7 +3,7 @@ import { Room, Move, User } from '../types';
 import { api } from '../services/api';
 import { shareTelegramLink, triggerHapticImpact } from '../services/telegram';
 import { MoveButton } from '../components/MoveButton';
-import { Users, Plus, KeyRound, Copy, Share2, Check, Lock, Coins, ShieldAlert } from 'lucide-react';
+import { Users, Plus, KeyRound, Copy, Share2, Check, Lock, Coins } from 'lucide-react';
 
 interface RoomPageProps {
   currentUser: User | null;
@@ -354,13 +354,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
               </p>
             </div>
 
-            {/* Platform 5% Fee Warning */}
-            <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] text-slate-300 font-semibold text-left flex items-start gap-2">
-              <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <span>
-                Nền tảng giữ <strong className="text-amber-400 font-black">5% giá phòng cược</strong> (Ví dụ: Phòng cược 10,000 Xu thu phí 500 Xu, người thắng nhận +9,500 Xu).
-              </span>
-            </div>
+
 
             <button
               onClick={handleCreateRoom}
