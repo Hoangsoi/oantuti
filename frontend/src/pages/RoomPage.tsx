@@ -156,8 +156,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
         }
 
         const betAmount = room.bet_amount || 0;
-        const totalPot = betAmount * 2;
-        const houseFee = Math.floor(totalPot * 0.05);
+        const houseFee = Math.floor(betAmount * 0.05);
         const winnerNetGain = betAmount - houseFee;
         const coinsChange = result === 'win' ? winnerNetGain : result === 'lose' ? -betAmount : 0;
 
