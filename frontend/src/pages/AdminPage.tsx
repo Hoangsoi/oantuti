@@ -421,6 +421,21 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
         </button>
       </div>
 
+      {/* Quick Admin Actions Banner */}
+      <div className="flex items-center justify-between p-2.5 rounded-2xl bg-red-950/40 border border-red-500/40 text-xs">
+        <div className="flex items-center gap-1.5 font-black text-red-400">
+          <Trash2 className="w-4 h-4 text-red-500 animate-pulse" />
+          <span>XÓA SẠCH DỮ LIỆU HỆ THỐNG:</span>
+        </div>
+        <button
+          onClick={() => setIsClearModalOpen(true)}
+          className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-[11px] border border-red-400/30 shadow-md shadow-red-500/20 active:scale-95 transition-all flex items-center gap-1"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          <span>🗑️ XÓA SẠCH LỊCH SỬ</span>
+        </button>
+      </div>
+
       {statusMsg && (
         <div className={`p-3 text-xs font-bold rounded-xl text-center border ${
           statusMsg.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400'
