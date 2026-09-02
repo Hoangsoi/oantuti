@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { User, WalletData, Transaction } from '../types';
 import { api } from '../services/api';
-import { openTelegramDirectChat, triggerHapticImpact, triggerHapticNotification } from '../services/telegram';
-import { Copy, Check, Wallet as WalletIcon, Building, MessageCircle } from 'lucide-react';
+import { shareTelegramLink, openTelegramDirectChat, triggerHapticImpact, triggerHapticNotification } from '../services/telegram';
+import { Copy, Check, Wallet as WalletIcon, Building, MessageCircle, Send } from 'lucide-react';
 
 interface WalletPageProps {
   currentUser: User | null;
@@ -100,8 +100,14 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
     // 1. Copy formatted order details to clipboard automatically
     navigator.clipboard.writeText(text);
 
-    // 2. Open private chat window with Admin directly without SHARE dialog
+    // 2. Open private chat window with Admin directly
     openTelegramDirectChat(ADMIN_TELEGRAM_USERNAME);
+  };
+
+  const handleSendShareWithPrefilledText = (tx: Transaction) => {
+    const text = getAdminNotificationText(tx);
+    navigator.clipboard.writeText(text);
+    shareTelegramLink(`https://t.me/${ADMIN_TELEGRAM_USERNAME}`, text);
   };
 
   // Submit Link Bank
@@ -144,7 +150,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
       const tx = await api.deposit(depositMethod, amt, depositMemo || defaultMemo);
       setCreatedTx(tx);
       triggerHapticNotification('success');
-      setSuccessMsg(`Yêu cầu nạp tiền #${tx.id} đã khởi tạo thành công! Bấm nút bên dưới để mở khung chat trực tiếp với Admin (@${ADMIN_TELEGRAM_USERNAME}).`);
+      setSuccessMsg(`Yêu cầu nạp tiền #${tx.id} đã khởi tạo thành công! Vui lòng chọn cách nhắn cho Admin (@${ADMIN_TELEGRAM_USERNAME}) bên dưới.`);
       handleOpenDirectAdminChat(tx);
       loadWallet();
     } catch (err: any) {
@@ -178,7 +184,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
       const result = await api.withdraw(withdrawMethod, coins);
       setCreatedTx(result.transaction);
       triggerHapticNotification('success');
-      setSuccessMsg(`Yêu cầu rút #${result.transaction.id} (${coins.toLocaleString()} Xu) đã gửi thành công! Bấm nút bên dưới để mở khung chat trực tiếp với Admin (@${ADMIN_TELEGRAM_USERNAME}).`);
+      setSuccessMsg(`Yêu cầu rút #${result.transaction.id} (${coins.toLocaleString()} Xu) đã gửi thành công! Vui lòng chọn cách nhắn cho Admin (@${ADMIN_TELEGRAM_USERNAME}) bên dưới.`);
       handleOpenDirectAdminChat(result.transaction);
       onUserUpdated(result.updatedUser);
       loadWallet();
@@ -281,25 +287,31 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
             <div className="space-y-2 pt-1">
               <button
                 onClick={() => handleOpenDirectAdminChat(createdTx)}
-                className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all"
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all"
               >
                 <MessageCircle className="w-4 h-4 text-amber-400" />
-                <span>💬 NHẮN TRỰC TIẾP ADMIN @ottadmin2026 (# {createdTx.id})</span>
+                <span>💬 MỞ CHAT TRỰC TIẾP ADMIN @ottadmin2026 (# {createdTx.id})</span>
               </button>
 
-              <div className="flex items-center justify-between gap-2 pt-1">
-                <button
-                  onClick={() => handleCopy(getAdminNotificationText(createdTx), 'admin_msg')}
-                  className="w-full py-2.5 px-3 rounded-xl bg-slate-800 text-slate-300 font-extrabold text-[11px] border border-slate-700 flex items-center justify-center gap-1.5 active:scale-95"
-                >
-                  {copiedKey === 'admin_msg' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedKey === 'admin_msg' ? 'ĐÃ SAO CHÉP MÃ ĐƠN' : 'SAO CHÉP NỘI DUNG ĐƠN'}</span>
-                </button>
+              <button
+                onClick={() => handleSendShareWithPrefilledText(createdTx)}
+                className="w-full py-2.5 px-3 rounded-xl bg-slate-800 text-amber-300 font-extrabold text-xs border border-slate-700 flex items-center justify-center gap-1.5 active:scale-95"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>📤 HOẶC GỬI DẠNG CHIA SẺ KÈM NỘI DUNG MẪU</span>
+              </button>
+
+              <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-[11px] text-amber-300 font-semibold text-center">
+                💡 <strong>Mẹo gửi nhanh:</strong> Mã đơn <strong>#{createdTx.id}</strong> đã tự động được Copy. Khi cửa sở chat Admin mở ra, bạn chỉ cần nhấn nút <strong>Dán (Paste)</strong> vào ô nhập tin nhắn ➔ Bấm <strong>Gửi</strong>!
               </div>
 
-              <div className="text-[11px] text-slate-400 font-semibold text-center pt-0.5">
-                (Đã tự động sao chép mã đơn. Mở chat Admin ➔ Bấm <strong>Dán (Paste)</strong> để gửi ngay)
-              </div>
+              <button
+                onClick={() => handleCopy(getAdminNotificationText(createdTx), 'admin_msg')}
+                className="w-full py-2 px-3 rounded-xl bg-slate-900 text-slate-300 font-extrabold text-[11px] border border-slate-800 flex items-center justify-center gap-1.5 active:scale-95"
+              >
+                {copiedKey === 'admin_msg' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedKey === 'admin_msg' ? 'ĐÃ SAO CHÉP NỘI DUNG ĐƠN' : 'SAO CHÉP LẠI NỘI DUNG ĐƠN HÀNG'}</span>
+              </button>
             </div>
           )}
         </div>

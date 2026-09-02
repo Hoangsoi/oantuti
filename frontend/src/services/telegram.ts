@@ -74,14 +74,13 @@ export function triggerHapticNotification(type: 'success' | 'error' | 'warning')
 }
 
 /**
- * Opens Telegram Share URL with pre-filled text.
- * Requires valid `targetUrl` parameter so Telegram server never redirects to telegram.org.
+ * Opens Telegram Share URL with pre-filled text and targets valid URL.
  */
 export function shareTelegramLink(targetUrl: string, text: string) {
   const tg = getTelegramWebApp();
-  const validUrl = targetUrl || 'https://t.me/lucky20261102';
+  const validUrl = targetUrl || 'https://t.me/ottadmin2026';
   const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(validUrl)}&text=${encodeURIComponent(text)}`;
-  
+
   if (tg && typeof tg.openTelegramLink === 'function') {
     tg.openTelegramLink(shareUrl);
   } else {
@@ -90,9 +89,9 @@ export function shareTelegramLink(targetUrl: string, text: string) {
 }
 
 /**
- * Opens direct private chat with Admin Telegram Username without share dialog.
+ * Opens direct private chat with Admin Telegram Username.
  */
-export function openTelegramDirectChat(username: string = 'lucky20261102') {
+export function openTelegramDirectChat(username: string = 'ottadmin2026') {
   const tg = getTelegramWebApp();
   const cleanUsername = username.replace('@', '').replace('https://t.me/', '');
   const directUrl = `https://t.me/${cleanUsername}`;
