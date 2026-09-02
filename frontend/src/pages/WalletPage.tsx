@@ -91,6 +91,12 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
+  const activeAdminUsername = (
+    walletData?.adminPayment?.adminTelegramUsername ||
+    import.meta.env.VITE_ADMIN_USERNAME ||
+    'ottadmin2026'
+  ).replace('@', '').trim();
+
   const getAdminNotificationText = (tx: Transaction) => {
     const isDeposit = tx.type === 'deposit';
 
@@ -98,26 +104,26 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
     if (tx.payment_method === 'usdt') {
       bankDetailText = `Ví USDT TRC20: ${walletData?.bankAccount?.usdt_address || usdtAddress || 'Chưa liên kết'}`;
     } else if (walletData?.bankAccount) {
-      bankDetailText = `${walletData.bankAccount.bank_name} - STK: ${walletData.bankAccount.account_number} (${walletData.bankAccount.account_holder})`;
+      bankDetailText = `${walletData.bankAccount.bank_name} - ${walletData.bankAccount.account_number} (${walletData.bankAccount.account_holder})`;
     } else {
-      bankDetailText = 'Tài khoản Ngân hàng';
+      bankDetailText = `${bankName} - ${accountNumber} (${accountHolder})`;
     }
 
     return isDeposit
-      ? `💬 BÁO DUYỆT ĐƠN NẠP XU (@${ADMIN_TELEGRAM_USERNAME})\n-----------------------\n🔑 Mã đơn: #${tx.id}\n👤 Khách hàng: ${currentUser?.first_name} (ID: ${currentUser?.id})\n💰 Số tiền: ${Number(tx.amount).toLocaleString()} ${tx.payment_method === 'usdt' ? 'USDT' : 'VNĐ'}\n🪙 Quy đổi: +${tx.coins.toLocaleString()} Xu\n👉 Vui lòng kiểm tra và duyệt Xu giúp tôi!`
-      : `💬 BÁO YÊU CẦU RÚT TIỀN (@${ADMIN_TELEGRAM_USERNAME})\n-----------------------\n🔑 Mã đơn rút: #${tx.id}\n👤 Khách hàng: ${currentUser?.first_name} (ID: ${currentUser?.id})\n🏦 Nơi nhận: ${bankDetailText}\n🪙 Số Xu rút: -${tx.coins.toLocaleString()} Xu\n💵 Số tiền thực nhận: ${Number(tx.amount).toLocaleString()} ${tx.payment_method === 'usdt' ? 'USDT' : 'VNĐ'}\n👉 Vui lòng kiểm tra và chuyển tiền giúp tôi!`;
+      ? `💬 BÁO DUYỆT ĐƠN NẠP XU (@${activeAdminUsername})\n-----------------------\n🔑 Mã đơn: #${tx.id}\n👤 Khách hàng: ${currentUser?.first_name} (ID: ${currentUser?.id})\n💰 Số tiền: ${Number(tx.amount).toLocaleString()} ${tx.payment_method === 'usdt' ? 'USDT' : 'VNĐ'}\n🪙 Quy đổi: +${tx.coins.toLocaleString()} Xu\n👉 Vui lòng kiểm tra và duyệt Xu giúp tôi!`
+      : `💬 BÁO YÊU CẦU RÚT TIỀN (@${activeAdminUsername})\n-----------------------\n🔑 Mã đơn rút: #${tx.id}\n👤 Khách hàng: ${currentUser?.first_name} (ID: ${currentUser?.id})\n🏦 Nơi nhận: ${bankDetailText}\n🪙 Số Xu rút: -${tx.coins.toLocaleString()} Xu\n💵 Số tiền thực nhận: ${Number(tx.amount).toLocaleString()} ${tx.payment_method === 'usdt' ? 'USDT' : 'VNĐ'}\n👉 Vui lòng kiểm tra và chuyển tiền giúp tôi!`;
   };
 
   const handleOpenDirectAdminChat = (tx: Transaction) => {
     const text = getAdminNotificationText(tx);
     navigator.clipboard.writeText(text);
-    openTelegramDirectChat(ADMIN_TELEGRAM_USERNAME);
+    openTelegramDirectChat(activeAdminUsername);
   };
 
   const handleSendShareWithPrefilledText = (tx: Transaction) => {
     const text = getAdminNotificationText(tx);
     navigator.clipboard.writeText(text);
-    shareTelegramLink(`https://t.me/${ADMIN_TELEGRAM_USERNAME}`, text);
+    shareTelegramLink(`https://t.me/${activeAdminUsername}`, text);
   };
 
   // Submit Link Bank & USDT Account

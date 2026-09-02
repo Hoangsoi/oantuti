@@ -98,6 +98,7 @@ export interface Transaction {
 }
 
 export interface AdminPaymentInfo {
+  adminTelegramUsername?: string;
   bankName: string;
   accountNumber: string;
   accountHolder: string;

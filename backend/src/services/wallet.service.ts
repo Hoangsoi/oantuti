@@ -4,6 +4,7 @@ import { sendTelegramAdminNotification } from '../utils/telegram';
 
 export function getAdminPaymentInfo(): AdminPaymentInfo {
   return {
+    adminTelegramUsername: (process.env.ADMIN_TELEGRAM_USERNAME || 'ottadmin2026').replace('@', '').trim(),
     bankName: process.env.ADMIN_BANK_NAME || 'MBBank (Ngân Hàng Quân Đội)',
     accountNumber: process.env.ADMIN_BANK_ACCOUNT || '999988889999',
     accountHolder: process.env.ADMIN_BANK_HOLDER || 'OAN TU TI OFFICIAL',
