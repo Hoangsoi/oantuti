@@ -66,6 +66,8 @@ app.use('/api', apiRoutes);
 // Centralized error handling
 app.use(errorHandlerMiddleware);
 
+import { startTelegramBot } from './services/bot.service';
+
 // Boot server
 async function startServer() {
   await initDatabase();
@@ -73,6 +75,7 @@ async function startServer() {
   app.listen(config.port, () => {
     console.log(`🚀 Máy chủ OẲN TÙ TÌ Backend đang chạy tại port ${config.port}`);
     console.log(`🎮 Môi trường: ${config.nodeEnv}`);
+    startTelegramBot();
   });
 }
 
