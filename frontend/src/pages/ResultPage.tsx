@@ -129,7 +129,9 @@ export const ResultPage: React.FC<ResultPageProps> = ({ match, onPlayAgain, onGo
                   ? `+${match.coins_change.toLocaleString()} Xu`
                   : match.coins_change < 0
                   ? `${match.coins_change.toLocaleString()} Xu`
-                  : '0 Xu (Hoàn cược)'}
+                  : match.result === 'draw'
+                  ? '0 Xu (Hòa hoàn cược)'
+                  : '0 Xu (Phòng chơi tự do)'}
               </span>
             </div>
           )}
