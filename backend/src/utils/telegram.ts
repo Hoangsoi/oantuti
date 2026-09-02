@@ -5,6 +5,7 @@ import { config } from '../config';
 
 /**
  * Validates Telegram Mini App initData string according to official Telegram specification.
+ * Supports legacy initData (without signature) and new Telegram iOS initData (containing signature).
  * Specification: https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
  */
 export function verifyTelegramInitData(initData: string, botToken: string): { isValid: boolean; user?: TelegramUser } {
@@ -15,15 +16,38 @@ export function verifyTelegramInitData(initData: string, botToken: string): { is
   try {
     const urlParams = new URLSearchParams(initData);
     const hash = urlParams.get('hash');
+    const signature = urlParams.get('signature');
+    const authDateStr = urlParams.get('auth_date');
+    const hasUser = urlParams.has('user');
+
+    const paramNames: string[] = [];
+    urlParams.forEach((_, key) => {
+      paramNames.push(key);
+    });
+
+    const safeLogFail = (reason: string) => {
+      console.warn('[Telegram Auth Validation Failed]', {
+        reason,
+        hasHash: Boolean(hash),
+        hasSignature: Boolean(signature),
+        hasUser,
+        authDate: authDateStr || 'missing',
+        parameterNames: paramNames,
+      });
+    };
+
     if (!hash) {
+      safeLogFail('Missing hash parameter');
       return { isValid: false };
     }
 
+    // Remove hash and signature before building dataCheckString for HMAC validation
     urlParams.delete('hash');
+    urlParams.delete('signature');
 
     // 1. Verify auth_date to prevent replay attacks (MAX 24 hours expiry)
-    const authDateStr = urlParams.get('auth_date');
     if (!authDateStr) {
+      safeLogFail('Missing auth_date parameter');
       return { isValid: false };
     }
 
@@ -32,11 +56,11 @@ export function verifyTelegramInitData(initData: string, botToken: string): { is
     const MAX_EXPIRY_SECONDS = 86400; // 24 hours
 
     if (isNaN(authDate) || now - authDate > MAX_EXPIRY_SECONDS || authDate - now > 300) {
-      console.warn('[Telegram Auth] InitData expired or invalid auth_date timestamp:', authDateStr);
+      safeLogFail(`auth_date timestamp invalid or expired (authDate: ${authDateStr}, now: ${now})`);
       return { isValid: false };
     }
 
-    // 2. Sort parameters alphabetically
+    // 2. Sort remaining parameters alphabetically
     const paramPairs: string[] = [];
     urlParams.forEach((val, key) => {
       paramPairs.push(`${key}=${val}`);
@@ -59,12 +83,14 @@ export function verifyTelegramInitData(initData: string, botToken: string): { is
     const hashBuffer = Buffer.from(hash.toLowerCase(), 'utf8');
 
     if (calculatedBuffer.length !== hashBuffer.length) {
+      safeLogFail('Hash length mismatch');
       return { isValid: false };
     }
 
     const isValid = crypto.timingSafeEqual(calculatedBuffer, hashBuffer);
 
     if (!isValid) {
+      safeLogFail('HMAC signature mismatch');
       return { isValid: false };
     }
 
@@ -75,8 +101,8 @@ export function verifyTelegramInitData(initData: string, botToken: string): { is
     }
 
     return { isValid: true, user };
-  } catch (error) {
-    console.error('Error verifying Telegram initData:', error);
+  } catch (error: any) {
+    console.error('[Telegram Auth Error]', error.message || error);
     return { isValid: false };
   }
 }
