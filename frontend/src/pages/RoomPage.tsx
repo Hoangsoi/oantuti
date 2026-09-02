@@ -601,7 +601,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
                 {/* Host Info */}
                 <div className="flex flex-col items-center">
                   <div className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1">
-                    {room.host_id === currentUser.id ? 'BẠN (HOST)' : 'ĐỐI THỦ (HOST)'}
+                    {Number(room.host_id) === Number(currentUser?.id) ? 'BẠN' : 'ĐỐI THỦ'}
                   </div>
                   <img
                     src={room.host_avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${room.host_id}`}
@@ -627,7 +627,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
                 {/* Guest Info */}
                 <div className="flex flex-col items-center border-l border-slate-700/80">
                   <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">
-                    {room.guest_id === currentUser.id ? 'BẠN' : 'ĐỐI THỦ'}
+                    {Number(room.guest_id) === Number(currentUser?.id) ? 'BẠN' : 'ĐỐI THỦ'}
                   </div>
                   <img
                     src={room.guest_avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${room.guest_id}`}
