@@ -85,6 +85,17 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
   useEffect(() => {
     if (!room || activeTab !== 'lobby') return;
 
+    // If room is completed and not currently in 10s reveal phase, auto reset for next round
+    if (room.status === 'completed' && !isRevealing) {
+      api.resetRoom(room.room_code).then((resetRoom) => {
+        setRoom(resetRoom);
+        setMySelectedMove(null);
+        setIsRevealing(false);
+        setSelectionTimeLeft(10);
+      }).catch(() => {});
+      return;
+    }
+
     const interval = setInterval(async () => {
       try {
         const updated = await api.getRoomState(room.room_code);
@@ -101,7 +112,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [room, activeTab, isRevealing]);
+  }, [room?.room_code, room?.status, activeTab, isRevealing]);
 
   // Reset local move selection state when room returns to 'ready' status for a new round
   useEffect(() => {
