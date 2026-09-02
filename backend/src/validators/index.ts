@@ -33,17 +33,18 @@ export const linkBankSchema = z.object({
   bankName: z.string().min(2, 'Tên ngân hàng từ 2 ký tự').max(100),
   accountNumber: z.string().min(3, 'Số tài khoản từ 3 ký tự').max(30),
   accountHolder: z.string().min(2, 'Tên chủ tài khoản từ 2 ký tự').max(100),
+  usdtAddress: z.string().max(100).optional(),
 });
 
 export const depositSchema = z.object({
   method: z.enum(['bank', 'usdt']),
-  amount: z.number().positive('Số tiền phải lớn hơn 0').max(100000000, 'Số tiền quá lớn'),
+  amount: z.number().min(10000, 'Mức nạp tối thiểu là 10,000đ').max(100000000, 'Số tiền quá lớn'),
   memo: z.string().max(200).optional(),
 });
 
 export const withdrawSchema = z.object({
   method: z.enum(['bank', 'usdt']),
-  coinsAmount: z.number().int().min(1000, 'Mức rút tối thiểu 1,000 Xu').max(100000000, 'Số Xu rút quá lớn'),
+  coinsAmount: z.number().int().min(10000, 'Mức rút tối thiểu là 10,000 Xu').max(100000000, 'Số Xu rút quá lớn'),
 });
 
 export const claimRewardSchema = z.object({

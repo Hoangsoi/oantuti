@@ -20,11 +20,11 @@ export async function getWalletInfoHandler(req: Request, res: Response) {
 export async function linkBankHandler(req: Request, res: Response) {
   try {
     if (!req.user) return sendError(res, 'Chưa đăng nhập', 401);
-    const { bankName, accountNumber, accountHolder } = req.body;
-    const bankAccount = await linkBankAccount(req.user.id, bankName, accountNumber, accountHolder);
-    return sendSuccess(res, bankAccount, 'Liên kết tài khoản ngân hàng thành công');
+    const { bankName, accountNumber, accountHolder, usdtAddress } = req.body;
+    const bankAccount = await linkBankAccount(req.user.id, bankName, accountNumber, accountHolder, usdtAddress);
+    return sendSuccess(res, bankAccount, 'Cập nhật thông tin tài khoản thành công');
   } catch (error: any) {
-    return sendError(res, error.message || 'Không thể liên kết ngân hàng', 400);
+    return sendError(res, error.message || 'Không thể liên kết thông tin tài khoản', 400);
   }
 }
 

@@ -26,25 +26,33 @@ export async function getWalletInfo(userId: number) {
   };
 }
 
-export async function linkBankAccount(userId: number, bankName: string, accountNumber: string, accountHolder: string): Promise<BankAccount> {
+export async function linkBankAccount(
+  userId: number,
+  bankName: string,
+  accountNumber: string,
+  accountHolder: string,
+  usdtAddress?: string
+): Promise<BankAccount> {
   const cleanBank = bankName.trim();
   const cleanNumber = accountNumber.trim();
   const cleanHolder = accountHolder.trim().toUpperCase();
+  const cleanUsdt = usdtAddress ? usdtAddress.trim() : null;
 
   if (!cleanBank || !cleanNumber || !cleanHolder) {
     throw new Error('Vui lòng nhập đầy đủ thông tin ngân hàng');
   }
 
   const res = await query<BankAccount>(
-    `INSERT INTO bank_accounts (user_id, bank_name, account_number, account_holder)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO bank_accounts (user_id, bank_name, account_number, account_holder, usdt_address)
+     VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (user_id) DO UPDATE
      SET bank_name = EXCLUDED.bank_name,
          account_number = EXCLUDED.account_number,
          account_holder = EXCLUDED.account_holder,
+         usdt_address = COALESCE(EXCLUDED.usdt_address, bank_accounts.usdt_address),
          updated_at = CURRENT_TIMESTAMP
      RETURNING *`,
-    [userId, cleanBank, cleanNumber, cleanHolder]
+    [userId, cleanBank, cleanNumber, cleanHolder, cleanUsdt]
   );
 
   return res.rows[0];
@@ -56,8 +64,8 @@ export async function createDepositRequest(
   amount: number,
   memo: string
 ): Promise<Transaction> {
-  if (amount <= 0) {
-    throw new Error('Số tiền nạp phải lớn hơn 0');
+  if (amount < 10000) {
+    throw new Error('Mức nạp tối thiểu là 10,000đ (hoặc 10,000 Xu)');
   }
 
   const adminPayment = getAdminPaymentInfo();
@@ -97,8 +105,8 @@ export async function createWithdrawRequest(
   method: 'bank' | 'usdt',
   coinsAmount: number
 ): Promise<{ transaction: Transaction; updatedUser: User }> {
-  if (coinsAmount < 1000) {
-    throw new Error('Mức rút tối thiểu là 1,000 Xu Game');
+  if (coinsAmount < 10000) {
+    throw new Error('Mức rút tối thiểu là 10,000 Xu Game');
   }
 
   const client = await pool.connect();
@@ -117,11 +125,16 @@ export async function createWithdrawRequest(
       throw new Error(`Số dư Xu Game của bạn không đủ (${coinsAmount.toLocaleString()} Xu)`);
     }
 
-    // If method is bank, verify bank account exists
-    if (method === 'bank') {
+    // Verify linked account based on withdrawal method
+    if (method === 'usdt') {
+      const bankRes = await client.query<BankAccount>('SELECT usdt_address FROM bank_accounts WHERE user_id = $1', [userId]);
+      if (bankRes.rows.length === 0 || !bankRes.rows[0].usdt_address) {
+        throw new Error('Vui lòng liên kết địa chỉ ví USDT (TRC20) tại Tab "Tài Khoản" trước khi tạo yêu cầu rút USDT');
+      }
+    } else {
       const bankRes = await client.query('SELECT id FROM bank_accounts WHERE user_id = $1', [userId]);
       if (bankRes.rows.length === 0) {
-        throw new Error('Vui lòng liên kết tài khoản ngân hàng trước khi tạo yêu cầu rút tiền');
+        throw new Error('Vui lòng liên kết tài khoản ngân hàng tại Tab "Tài Khoản" trước khi tạo yêu cầu rút tiền');
       }
     }
 

@@ -154,10 +154,10 @@ export const api = {
     return request<WalletData>('/wallet/info');
   },
 
-  linkBankAccount: async (bankName: string, accountNumber: string, accountHolder: string) => {
+  linkBankAccount: async (bankName: string, accountNumber: string, accountHolder: string, usdtAddress?: string) => {
     return request<BankAccount>('/wallet/link-bank', {
       method: 'POST',
-      body: JSON.stringify({ bankName, accountNumber, accountHolder }),
+      body: JSON.stringify({ bankName, accountNumber, accountHolder, usdtAddress }),
     });
   },
 

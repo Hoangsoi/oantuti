@@ -80,6 +80,7 @@ export interface BankAccount {
   bank_name: string;
   account_number: string;
   account_holder: string;
+  usdt_address?: string | null;
   created_at: Date;
 }
 

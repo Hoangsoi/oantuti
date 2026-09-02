@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, WalletData, Transaction } from '../types';
 import { api } from '../services/api';
 import { shareTelegramLink, openTelegramDirectChat, triggerHapticImpact, triggerHapticNotification } from '../services/telegram';
-import { Copy, Check, Wallet as WalletIcon, Building, MessageCircle, Send, PlusCircle } from 'lucide-react';
+import { Copy, Check, Wallet as WalletIcon, Building, MessageCircle, Send } from 'lucide-react';
 
 interface WalletPageProps {
   currentUser: User | null;
@@ -39,17 +39,18 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  // Link Bank Form State
+  // Link Bank & USDT Form State
   const [bankName, setBankName] = useState<string>(POPULAR_BANKS[0]);
   const [accountNumber, setAccountNumber] = useState<string>('');
   const [accountHolder, setAccountHolder] = useState<string>('');
+  const [usdtAddress, setUsdtAddress] = useState<string>('');
 
   // Deposit Form State
   const [depositAmount, setDepositAmount] = useState<string>('50000');
   const [depositMemo, setDepositMemo] = useState<string>('');
 
   // Withdraw Form State
-  const [withdrawCoins, setWithdrawCoins] = useState<string>('1000');
+  const [withdrawCoins, setWithdrawCoins] = useState<string>('10000');
 
   const loadWallet = async () => {
     setLoading(true);
@@ -61,6 +62,9 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
         setBankName(data.bankAccount.bank_name);
         setAccountNumber(data.bankAccount.account_number);
         setAccountHolder(data.bankAccount.account_holder);
+        if (data.bankAccount.usdt_address) {
+          setUsdtAddress(data.bankAccount.usdt_address);
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Không thể tải thông tin ví');
@@ -91,10 +95,12 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
     const isDeposit = tx.type === 'deposit';
 
     let bankDetailText = '';
-    if (walletData?.bankAccount) {
+    if (tx.payment_method === 'usdt') {
+      bankDetailText = `Ví USDT TRC20: ${walletData?.bankAccount?.usdt_address || usdtAddress || 'Chưa liên kết'}`;
+    } else if (walletData?.bankAccount) {
       bankDetailText = `${walletData.bankAccount.bank_name} - STK: ${walletData.bankAccount.account_number} (${walletData.bankAccount.account_holder})`;
     } else {
-      bankDetailText = 'Ví USDT TRC20';
+      bankDetailText = 'Tài khoản Ngân hàng';
     }
 
     return isDeposit
@@ -104,10 +110,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
 
   const handleOpenDirectAdminChat = (tx: Transaction) => {
     const text = getAdminNotificationText(tx);
-    // 1. Copy formatted order details to clipboard automatically
     navigator.clipboard.writeText(text);
-
-    // 2. Open private chat window with Admin directly
     openTelegramDirectChat(ADMIN_TELEGRAM_USERNAME);
   };
 
@@ -117,7 +120,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
     shareTelegramLink(`https://t.me/${ADMIN_TELEGRAM_USERNAME}`, text);
   };
 
-  // Submit Link Bank
+  // Submit Link Bank & USDT Account
   const handleSaveBank = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -125,15 +128,15 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
     setSuccessMsg(null);
     triggerHapticImpact('medium');
     try {
-      const bank = await api.linkBankAccount(bankName, accountNumber, accountHolder);
+      const bank = await api.linkBankAccount(bankName, accountNumber, accountHolder, usdtAddress);
       triggerHapticNotification('success');
-      setSuccessMsg('Liên kết tài khoản ngân hàng thành công!');
+      setSuccessMsg('Cập nhật thông tin Tài khoản & Ví thành công!');
       if (walletData) {
         setWalletData({ ...walletData, bankAccount: bank });
       }
     } catch (err: any) {
       triggerHapticNotification('error');
-      setError(err.message || 'Không thể lưu tài khoản ngân hàng');
+      setError(err.message || 'Không thể lưu thông tin tài khoản');
     } finally {
       setSubmitting(false);
     }
@@ -142,8 +145,8 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
   // Submit Deposit Request
   const handleConfirmDeposit = async () => {
     const amt = Number(depositAmount);
-    if (!amt || amt <= 0) {
-      setError('Vui lòng nhập số tiền nạp hợp lệ');
+    if (!amt || amt < 10000) {
+      setError('Mức nạp tối thiểu là 10,000đ (hoặc 10,000 Xu)');
       return;
     }
 
@@ -170,13 +173,19 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
   // Submit Withdraw Request
   const handleConfirmWithdraw = async () => {
     const coins = Number(withdrawCoins);
-    if (!coins || coins < 1000) {
-      setError('Mức rút tối thiểu là 1,000 Xu Game');
+    if (!coins || coins < 10000) {
+      setError('Mức rút tối thiểu là 10,000 Xu Game');
       return;
     }
 
-    if (withdrawMethod === 'bank' && !walletData?.bankAccount) {
-      setError('Vui lòng liên kết ngân hàng trước khi gửi yêu cầu rút tiền');
+    if (withdrawMethod === 'usdt') {
+      if (!walletData?.bankAccount?.usdt_address) {
+        setError('Vui lòng liên kết Địa chỉ ví USDT (TRC20) tại Tab "Tài Khoản" trước khi tạo yêu cầu rút USDT!');
+        setActiveTab('bank');
+        return;
+      }
+    } else if (withdrawMethod === 'bank' && !walletData?.bankAccount) {
+      setError('Vui lòng liên kết tài khoản ngân hàng tại Tab "Tài Khoản" trước khi gửi yêu cầu rút tiền!');
       setActiveTab('bank');
       return;
     }
@@ -207,7 +216,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
       <div className="flex items-center justify-between">
         <button
           onClick={onBackHome}
-          className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold border border-slate-700"
+          className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold border border-slate-700 hover:bg-slate-700"
         >
           ← TRANG CHỦ
         </button>
@@ -265,7 +274,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
               : 'text-slate-400 hover:text-white'
           }`}
         >
-          💳 N.Hàng
+          💳 Tài Khoản
         </button>
         <button
           onClick={() => handleSwitchTab('history')}
@@ -320,67 +329,61 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
 
             <div className="flex justify-between border-b border-slate-800 py-1.5 font-semibold">
               <span className="text-slate-400">Số tiền:</span>
-              <span className="font-black text-emerald-400">
+              <span className="font-black text-emerald-400 text-sm">
                 {Number(createdTx.amount).toLocaleString()} {createdTx.payment_method === 'usdt' ? 'USDT' : 'VNĐ'}
               </span>
             </div>
 
             <div className="flex justify-between border-b border-slate-800 py-1.5 font-semibold">
-              <span className="text-slate-400">Quy đổi:</span>
-              <span className="font-black text-amber-400">{createdTx.coins.toLocaleString()} Xu</span>
-            </div>
-
-            <div className="flex justify-between pt-1 font-semibold">
-              <span className="text-slate-400">Trạng thái:</span>
-              <span className="font-extrabold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                Đang chờ Admin duyệt ⏳
+              <span className="text-slate-400">Số Xu giao dịch:</span>
+              <span className="font-black text-amber-400 text-sm">
+                {createdTx.type === 'deposit' ? '+' : '-'}{createdTx.coins.toLocaleString()} Xu
               </span>
             </div>
+
+            {createdTx.type === 'deposit' && (
+              <div className="flex justify-between py-1.5 font-semibold">
+                <span className="text-slate-400">Nội dung CK:</span>
+                <span className="font-black text-amber-300">{createdTx.memo}</span>
+              </div>
+            )}
           </div>
 
-          {/* Action Buttons */}
-          <div className="space-y-2.5 pt-1">
-            <button
-              onClick={() => handleCopy(getAdminNotificationText(createdTx), 'admin_msg')}
-              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 active:scale-95 transition-all"
-            >
-              {copiedKey === 'admin_msg' ? <Check className="w-4 h-4 text-emerald-950" /> : <Copy className="w-4 h-4" />}
-              <span>{copiedKey === 'admin_msg' ? `ĐÃ SAO CHÉP MÃ ĐƠN (#${createdTx.id}) ✓` : `📋 SAO CHÉP MÃ ĐƠN (#${createdTx.id})`}</span>
-            </button>
-
+          {/* Action Buttons to Send Admin Message */}
+          <div className="space-y-2 pt-2">
             <button
               onClick={() => handleOpenDirectAdminChat(createdTx)}
-              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 active:scale-95 transition-all"
+              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 active:scale-95 transition-all"
             >
-              <MessageCircle className="w-4 h-4 text-amber-400" />
-              <span>💬 MỞ CHAT TRỰC TIẾP ADMIN @ottadmin2026</span>
+              <MessageCircle className="w-4 h-4" />
+              <span>1. CHAT TRỰC TIẾP VỚI ADMIN THÔNG BÁO DUYỆT 💬</span>
             </button>
 
             <button
               onClick={() => handleSendShareWithPrefilledText(createdTx)}
-              className="w-full py-2.5 px-3 rounded-xl bg-slate-800 text-amber-300 font-extrabold text-[11px] border border-slate-700 flex items-center justify-center gap-1.5 active:scale-95"
+              className="w-full py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all"
             >
-              <Send className="w-3.5 h-3.5" />
-              <span>📤 HOẶC GỬI DẠNG CHIA SẺ MẪU</span>
+              <Send className="w-4 h-4 text-emerald-400" />
+              <span>2. GỬI TIN NHẮN THEO MẪU CÓ SẴN 📩</span>
             </button>
 
             <button
-              onClick={() => { setCreatedTx(null); setSuccessMsg(null); }}
-              className="w-full py-2 px-3 rounded-xl bg-slate-900 text-slate-400 hover:text-white font-extrabold text-[11px] border border-slate-800 flex items-center justify-center gap-1.5 active:scale-95 mt-2"
+              onClick={() => setCreatedTx(null)}
+              className="w-full py-2.5 text-xs text-slate-400 hover:text-white font-bold"
             >
-              <PlusCircle className="w-3.5 h-3.5" />
-              <span>➕ TẠO ĐƠN GIAO DỊCH MỚI</span>
+               Quay lại Ví
             </button>
           </div>
         </div>
       ) : (
+        /* NORMAL TAB CONTENT */
         <>
           {/* ------------------------------------------------------------------ */}
-          {/* TAB 1: DEPOSIT (VietQR Bank & USDT) */}
+          {/* TAB 1: DEPOSIT */}
           {/* ------------------------------------------------------------------ */}
           {activeTab === 'deposit' && (
             <div className="space-y-4">
-              {/* Method selector */}
+              {/* Method Selector */}
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setDepositMethod('bank')}
@@ -391,7 +394,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
                   }`}
                 >
                   <Building className="w-4 h-4" />
-                  <span>CHUYỂN KHOẢN NGÂN HÀNG</span>
+                  <span>NGÂN HÀNG (VIETQR)</span>
                 </button>
 
                 <button
@@ -459,9 +462,14 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
 
                   {/* Amount selector */}
                   <div className="space-y-2">
-                    <label className="text-xs font-black text-slate-300 block">Số tiền chuyển (VNĐ):</label>
+                    <label className="text-xs font-black text-slate-300 block">
+                      Số tiền chuyển (VNĐ) - Tối thiểu 10,000đ:
+                    </label>
                     <input
                       type="number"
+                      min={10000}
+                      step={1000}
+                      placeholder="Nhập số tiền (VD: 50000)"
                       value={depositAmount}
                       onChange={(e) => setDepositAmount(e.target.value)}
                       className="bg-slate-900 border border-slate-700 text-amber-400 font-black text-lg p-3 rounded-xl w-full text-center focus:outline-none focus:border-amber-400"
@@ -509,7 +517,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
                     </div>
 
                     <div className="space-y-1 pt-2">
-                      <label className="font-black text-slate-200 block">Số lượng USDT nạp:</label>
+                      <label className="font-black text-slate-200 block">Số lượng USDT nạp (Tối thiểu 10,000đ):</label>
                       <input
                         type="number"
                         placeholder="VD: 10"
@@ -552,7 +560,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
           {activeTab === 'withdraw' && (
             <div className="card-glass p-5 space-y-4 border-slate-700/80">
               <h3 className="text-sm font-black text-amber-400 text-center uppercase tracking-wider">
-                TẠO YÊU CẦU RÚT TIỀN
+                TẠO YÊU CẦU RÚT TIỀN (TỐI THIỂU 10,000 XU)
               </h3>
 
               <div className="grid grid-cols-2 gap-2">
@@ -581,11 +589,11 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
                 </button>
               </div>
 
-              {/* Linked Bank Card Preview */}
+              {/* Linked Bank Account Preview */}
               {withdrawMethod === 'bank' && (
                 <div className="bg-slate-900/90 p-3.5 rounded-xl border border-slate-800 space-y-2">
                   <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-slate-400">Tài khoản nhận:</span>
+                    <span className="text-slate-400">Tài khoản ngân hàng nhận:</span>
                     {walletData?.bankAccount ? (
                       <span className="text-emerald-400 font-black">ĐÃ LIÊN KẾT ✓</span>
                     ) : (
@@ -608,12 +616,51 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
                 </div>
               )}
 
+              {/* Linked USDT Wallet Address Preview */}
+              {withdrawMethod === 'usdt' && (
+                <div className="bg-slate-900/90 p-3.5 rounded-xl border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-bold">
+                    <span className="text-slate-400">Địa chỉ ví USDT (TRC20) nhận tiền:</span>
+                    {walletData?.bankAccount?.usdt_address ? (
+                      <span className="text-emerald-400 font-black">ĐÃ LIÊN KẾT ✓</span>
+                    ) : (
+                      <button
+                        onClick={() => handleSwitchTab('bank')}
+                        className="text-emerald-400 underline font-black"
+                      >
+                        + THÊM ĐỊA CHỈ VÍ USDT
+                      </button>
+                    )}
+                  </div>
+
+                  {walletData?.bankAccount?.usdt_address ? (
+                    <div className="text-xs font-mono font-bold text-emerald-400 break-all bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                      {walletData.bankAccount.usdt_address}
+                    </div>
+                  ) : (
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold space-y-1">
+                      <div>⚠️ Bạn chưa cài đặt Địa chỉ ví USDT nhận tiền.</div>
+                      <button
+                        onClick={() => handleSwitchTab('bank')}
+                        className="text-amber-400 font-black underline text-xs block"
+                      >
+                        👉 Bấm vào đây để cài đặt ví USDT ngay tại Tab "Tài Khoản"
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Withdraw Amount Input */}
               <div className="space-y-2">
-                <label className="text-xs font-black text-slate-300 block">Số Xu muốn rút:</label>
+                <label className="text-xs font-black text-slate-300 block">
+                  Số Xu muốn rút (Tối thiểu 10,000 Xu):
+                </label>
                 <input
                   type="number"
-                  placeholder="Nhập số Xu (Ví dụ: 5000)"
+                  min={10000}
+                  step={1000}
+                  placeholder="Nhập số Xu (Ví dụ: 10000)"
                   value={withdrawCoins}
                   onChange={(e) => setWithdrawCoins(e.target.value)}
                   className="bg-slate-900 border border-slate-700 text-amber-400 font-black text-lg p-3 rounded-xl w-full text-center focus:outline-none focus:border-amber-400"
@@ -639,12 +686,12 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
           )}
 
           {/* ------------------------------------------------------------------ */}
-          {/* TAB 3: LINK BANK ACCOUNT */}
+          {/* TAB 3: LINK BANK & USDT ACCOUNT */}
           {/* ------------------------------------------------------------------ */}
           {activeTab === 'bank' && (
             <form onSubmit={handleSaveBank} className="card-glass p-5 space-y-4 border-slate-700/80">
               <h3 className="text-sm font-black text-amber-400 text-center uppercase tracking-wider">
-                LIÊN KẾT TÀI KHOẢN NGÂN HÀNG CÁ NHÂN
+                LIÊN KẾT TÀI KHOẢN NGÂN HÀNG & VÍ USDT
               </h3>
 
               <div className="space-y-3 text-xs font-bold text-slate-300">
@@ -665,7 +712,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
                   <label className="block">Số tài khoản ngân hàng:</label>
                   <input
                     type="text"
-                    placeholder="Nhập số tài khoản"
+                    placeholder="Nhập số tài khoản ngân hàng"
                     value={accountNumber}
                     onChange={(e) => setAccountNumber(e.target.value)}
                     className="bg-slate-900 border border-slate-700 text-amber-400 font-black p-3 rounded-xl w-full focus:outline-none"
@@ -684,6 +731,23 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
                     required
                   />
                 </div>
+
+                {/* USDT Wallet Address Field */}
+                <div className="space-y-1 pt-2 border-t border-slate-800">
+                  <label className="block text-emerald-400 flex items-center gap-1 font-black">
+                    <span>₮ Địa chỉ ví USDT nhận tiền (Mạng TRC20):</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Nhập địa chỉ ví USDT TRC20 (VD: T9yD14Nj...)"
+                    value={usdtAddress}
+                    onChange={(e) => setUsdtAddress(e.target.value)}
+                    className="bg-slate-900 border border-slate-700 text-emerald-400 font-mono text-xs font-bold p-3 rounded-xl w-full focus:outline-none focus:border-emerald-400"
+                  />
+                  <p className="text-[10px] text-slate-400 font-normal">
+                    💡 Dùng để tự động rút tiền khi bạn chọn rút về <strong>Ví USDT (TRC20)</strong>.
+                  </p>
+                </div>
               </div>
 
               <button
@@ -691,7 +755,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
                 disabled={submitting}
                 className="w-full py-4 btn-game-primary text-base"
               >
-                <span>LƯU THÔNG TIN NGÂN HÀNG 💾</span>
+                <span>LƯU THÔNG TIN TÀI KHOẢN & VÍ 💾</span>
               </button>
             </form>
           )}
@@ -718,41 +782,54 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
                     return (
                       <div key={tx.id} className="card-glass p-3 flex items-center justify-between border-slate-700/60">
                         <div className="flex items-center gap-3">
-                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${
-                            isDeposit ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
-                          }`}>
+                          <div
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm ${
+                              isDeposit
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                            }`}
+                          >
                             {isDeposit ? '📥' : '📤'}
                           </div>
-                          <div>
-                            <div className="text-xs font-extrabold text-white">
-                              {isDeposit ? 'Nạp Xu Game' : 'Rút Xu Game'} ({tx.payment_method.toUpperCase()})
+
+                          <div className="space-y-0.5">
+                            <div className="text-xs font-extrabold text-white flex items-center gap-1.5">
+                              <span>{isDeposit ? 'Nạp Xu Game' : 'Rút Xu Game'}</span>
+                              <span className="text-[10px] text-slate-400 font-normal">
+                                ({tx.payment_method.toUpperCase()})
+                              </span>
                             </div>
-                            <div className="text-[10px] text-slate-400 font-semibold">
-                              {new Date(tx.created_at).toLocaleString('vi-VN')}
+                            <div className="text-[10px] text-slate-400">
+                              #{tx.id} • {new Date(tx.created_at).toLocaleString('vi-VN')}
                             </div>
                           </div>
                         </div>
 
-                        <div className="text-right">
-                          <div className={`text-xs font-black ${isDeposit ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {isDeposit ? `+${tx.coins.toLocaleString()}` : `-${tx.coins.toLocaleString()}`} Xu
+                        <div className="text-right space-y-0.5">
+                          <div
+                            className={`text-xs font-black ${
+                              isDeposit ? 'text-emerald-400' : 'text-amber-400'
+                            }`}
+                          >
+                            {isDeposit ? '+' : '-'}{tx.coins.toLocaleString()} Xu
                           </div>
-                          <div className="mt-0.5">
-                            {tx.status === 'pending' && (
-                              <span className="text-[10px] font-extrabold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                                Chờ duyệt ⏳
-                              </span>
-                            )}
-                            {tx.status === 'approved' && (
-                              <span className="text-[10px] font-extrabold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                                Thành công ✅
-                              </span>
-                            )}
-                            {tx.status === 'rejected' && (
-                              <span className="text-[10px] font-extrabold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
-                                Từ chối ❌
-                              </span>
-                            )}
+
+                          <div>
+                            <span
+                              className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
+                                tx.status === 'approved'
+                                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                  : tx.status === 'rejected'
+                                  ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                  : 'bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse'
+                              }`}
+                            >
+                              {tx.status === 'approved'
+                                ? 'Đã duyệt ✓'
+                                : tx.status === 'rejected'
+                                ? 'Từ chối'
+                                : 'Đang xử lý ⏳'}
+                            </span>
                           </div>
                         </div>
                       </div>
