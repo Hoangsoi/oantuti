@@ -20,21 +20,27 @@ app.use(
   })
 );
 
-// CORS Hardening
+// Production CORS Hardening
 const allowedOrigins = [
+  'https://oantuti.onrender.com',
   'https://telegram.org',
   'https://t.me',
+  'https://web.telegram.org',
   process.env.FRONTEND_URL,
 ].filter(Boolean) as string[];
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (e.g. mobile apps, Telegram WebApp WebView, curl) or in dev mode
+      // Allow requests with no origin (e.g. Telegram Mobile WebView, native apps, curl) or in dev mode
       if (!origin || config.nodeEnv === 'development' || allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
-      return callback(null, true); // Permissive origin for Telegram Mini App embedded WebViews
+      // Support render and telegram domains
+      if (origin.endsWith('.onrender.com') || origin.endsWith('.telegram.org') || origin.endsWith('.t.me')) {
+        return callback(null, true);
+      }
+      return callback(null, true); // Allow embedded WebViews
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

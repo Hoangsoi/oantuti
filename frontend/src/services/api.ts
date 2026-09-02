@@ -1,14 +1,22 @@
 import { LeaderboardData, Match, Move, ReferralStat, DailyRewardTask, User, Room, WalletData, BankAccount, Transaction } from '../types';
 
-let defaultApiUrl = 'http://localhost:5000/api';
-if (typeof window !== 'undefined' && window.location.hostname.includes('onrender.com')) {
-  const host = window.location.hostname;
-  if (host.includes('oantuti')) {
-    defaultApiUrl = 'https://oantuti-api.onrender.com/api';
+function getApiBaseUrl(): string {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim() !== '') {
+    return envUrl.trim().replace(/\/+$/, '');
   }
+
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    if (hostname.endsWith('onrender.com')) {
+      return 'https://oantuti-api.onrender.com/api';
+    }
+  }
+
+  return 'http://localhost:5000/api';
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || defaultApiUrl;
+const API_BASE_URL = getApiBaseUrl();
 
 let authToken: string | null = localStorage.getItem('oantuti_token');
 
@@ -31,18 +39,57 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     headers['Authorization'] = `Bearer ${authToken}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  const url = `${API_BASE_URL}${endpoint}`;
 
-  const json = await response.json();
+  // 15 seconds timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-  if (!response.ok || !json.success) {
-    throw new Error(json.message || 'Đã có lỗi kết nối đến máy chủ');
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers,
+      signal: options.signal || controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      if (!response.ok) {
+        throw new Error(`Lỗi máy chủ (${response.status}): ${response.statusText}`);
+      }
+      throw new Error('Phản hồi máy chủ không hợp lệ (không phải JSON)');
+    }
+
+    const json = await response.json();
+
+    if (!response.ok || json.success === false) {
+      throw new Error(json.message || `Yêu cầu thất bại (${response.status})`);
+    }
+
+    return json.data;
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+
+    if (error.name === 'AbortError') {
+      console.error('[API Timeout]', { url });
+      throw new Error(`Kết nối API quá thời hạn: ${API_BASE_URL}`);
+    }
+
+    // Network errors (Failed to fetch, Load failed, NetworkError)
+    if (
+      error instanceof TypeError ||
+      error.message?.includes('Failed to fetch') ||
+      error.message?.includes('Load failed') ||
+      error.message?.includes('NetworkError')
+    ) {
+      console.error('[API Network Error]', { url, originalError: error.message });
+      throw new Error(`Không thể kết nối API: ${API_BASE_URL}`);
+    }
+
+    throw error;
   }
-
-  return json.data;
 }
 
 export const api = {

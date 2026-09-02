@@ -51,6 +51,56 @@ export function initTelegramApp() {
   }
 }
 
+/**
+ * Safely waits for Telegram WebApp SDK initialization on iOS/Android WebViews.
+ * Polls every 100ms up to maxRetries (default 20 = 2 seconds).
+ * Ensures tg.ready() and tg.expand() are called when window.Telegram.WebApp is available.
+ */
+export function waitForTelegramSdk(
+  maxRetries: number = 20,
+  intervalMs: number = 100
+): Promise<{ tg: any; initData: string }> {
+  return new Promise((resolve) => {
+    let retries = 0;
+
+    const check = () => {
+      const tg = getTelegramWebApp();
+      if (tg) {
+        try {
+          tg.ready();
+          tg.expand();
+          tg.setHeaderColor('#0F172A');
+          tg.setBackgroundColor('#0F172A');
+        } catch (e) {
+          // ignore styling errors
+        }
+
+        const initData = tg.initData || '';
+        console.log('[Telegram] SDK detected');
+        if (initData) {
+          console.log('[Telegram] initData available');
+        }
+
+        // On iOS, if SDK exists but initData isn't populated yet, give it up to a few cycles
+        if (initData || retries >= maxRetries) {
+          resolve({ tg, initData });
+          return;
+        }
+      }
+
+      retries++;
+      if (retries >= maxRetries) {
+        console.log('[Telegram] Initialization timeout reached');
+        resolve({ tg: tg || null, initData: tg?.initData || '' });
+      } else {
+        setTimeout(check, intervalMs);
+      }
+    };
+
+    check();
+  });
+}
+
 export function triggerHapticImpact(style: 'light' | 'medium' | 'heavy' = 'medium') {
   const tg = getTelegramWebApp();
   if (tg?.HapticFeedback) {

@@ -17,24 +17,15 @@ export async function authenticateTelegramUser(initData: string, refCode?: strin
     const { isValid, user } = verifyTelegramInitData(initData, config.botToken);
     if (isValid && user) {
       telegramUser = user;
-    } else if (config.nodeEnv === 'development' || !config.botToken) {
-      // Fallback for development if token isn't configured or test initData provided
-      console.warn('⚠️ Telegram initData signature invalid or BOT_TOKEN missing. Fallback to initData user payload or mock.');
-      try {
-        const urlParams = new URLSearchParams(initData);
-        const userParam = urlParams.get('user');
-        if (userParam) {
-          telegramUser = JSON.parse(userParam);
-        }
-      } catch (e) {
-        // ignore
-      }
+    } else {
+      console.warn('[Auth] Telegram validation failed');
     }
   }
 
-  // Fallback for standalone browser testing in dev
+  // Fallback ONLY for local standalone development
   if (!telegramUser) {
     if (config.nodeEnv === 'development') {
+      console.warn('[Auth] Using development mock user fallback');
       telegramUser = getMockTelegramUser(999888);
     } else {
       throw new Error('Dữ liệu xác thực Telegram không hợp lệ');

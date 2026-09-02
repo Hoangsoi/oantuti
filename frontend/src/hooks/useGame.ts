@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ActivePage, Match, Move, User } from '../types';
 import { api } from '../services/api';
-import { getTelegramWebApp, triggerHapticImpact, triggerHapticNotification } from '../services/telegram';
+import { waitForTelegramSdk, triggerHapticImpact, triggerHapticNotification } from '../services/telegram';
 
 export function useGame() {
   const [user, setUser] = useState<User | null>(null);
@@ -10,26 +10,34 @@ export function useGame() {
   const [error, setError] = useState<string | null>(null);
   const [currentMatch, setCurrentMatch] = useState<Match | null>(null);
 
-  // Initialize auth
+  const authInProgressRef = useRef<boolean>(false);
+
+  // Initialize auth after Telegram SDK is ready
   const initAuth = useCallback(async () => {
+    if (authInProgressRef.current) return;
+    authInProgressRef.current = true;
+
     setLoading(true);
     setError(null);
+
     try {
-      const tg = getTelegramWebApp();
-      const initData = tg?.initData || '';
+      // Safely poll and wait for Telegram WebApp SDK & initData initialization
+      const { tg, initData } = await waitForTelegramSdk(20, 100);
       let refCode = tg?.initDataUnsafe?.start_param;
 
       if (refCode && refCode.startsWith('ref_')) {
         refCode = refCode.replace('ref_', '');
       }
 
+      console.log('[API] POST /auth/telegram');
       const { user: authUser } = await api.authTelegram(initData, refCode);
       setUser(authUser);
     } catch (err: any) {
-      console.error('Lỗi khởi tạo ứng dụng:', err);
+      console.error('[Auth Error]', err);
       setError(err.message || 'Không thể đăng nhập vào ứng dụng');
     } finally {
       setLoading(false);
+      authInProgressRef.current = false;
     }
   }, []);
 
