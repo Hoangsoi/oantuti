@@ -263,7 +263,7 @@ export async function getGameStats() {
     SELECT m.*, 
            u.first_name as player_name, u.telegram_id as player_tg_id
     FROM matches m
-    JOIN users u ON m.user_id = u.id
+    JOIN users u ON m.player_id = u.id
     ORDER BY m.created_at DESC
     LIMIT 30
   `);
