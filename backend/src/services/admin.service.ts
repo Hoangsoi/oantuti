@@ -14,18 +14,26 @@ export async function loginAdminUser(usernameInput: string, passwordInput: strin
 
   // Find or create admin user record in database
   let adminUserRes = await query<User>('SELECT * FROM users WHERE telegram_id = $1', [adminTgId]);
+  const currentAdminUsername = (process.env.ADMIN_TELEGRAM_USERNAME || 'ottadmin2026').replace('@', '').trim();
   let adminUser: User;
 
   if (adminUserRes.rows.length === 0) {
     const insertRes = await query<User>(
       `INSERT INTO users (telegram_id, first_name, last_name, username, rating, coins, referral_code)
-       VALUES ($1, 'Admin_2026', 'Official', 'ottadmin2026', 1000, 999999, 'REF_ADMIN_8780377211')
+       VALUES ($1, $2, 'Official', $2, 1000, 999999, 'REF_ADMIN_8780377211')
        RETURNING *`,
-      [adminTgId]
+      [adminTgId, currentAdminUsername]
     );
     adminUser = insertRes.rows[0];
   } else {
-    adminUser = adminUserRes.rows[0];
+    const updateRes = await query<User>(
+      `UPDATE users 
+       SET first_name = $1, username = $1, updated_at = CURRENT_TIMESTAMP 
+       WHERE telegram_id = $2 
+       RETURNING *`,
+      [currentAdminUsername, adminTgId]
+    );
+    adminUser = updateRes.rows[0];
   }
 
   // Issue JWT Token
@@ -316,7 +324,18 @@ export async function updatePaymentConfig(data: {
   if (data.accountNumber !== undefined) process.env.ADMIN_BANK_ACCOUNT = data.accountNumber;
   if (data.accountHolder !== undefined) process.env.ADMIN_BANK_HOLDER = data.accountHolder;
   if (data.usdtAddress !== undefined) process.env.ADMIN_USDT_ADDRESS = data.usdtAddress;
-  if (data.adminTelegramUsername !== undefined) process.env.ADMIN_TELEGRAM_USERNAME = data.adminTelegramUsername;
+  if (data.adminTelegramUsername !== undefined) {
+    const cleanUsername = data.adminTelegramUsername.replace('@', '').trim();
+    process.env.ADMIN_TELEGRAM_USERNAME = cleanUsername;
+
+    const adminTgId = parseInt(process.env.ADMIN_TELEGRAM_ID || '8780377211', 10);
+    try {
+      await query(
+        'UPDATE users SET username = $1, first_name = $2, updated_at = CURRENT_TIMESTAMP WHERE telegram_id = $3',
+        [cleanUsername, cleanUsername, adminTgId]
+      );
+    } catch (e) {}
+  }
   if (data.qrCodeUrl !== undefined) process.env.ADMIN_QR_CODE_URL = data.qrCodeUrl;
   if (data.botWinRate !== undefined) process.env.BOT_WIN_RATE = String(data.botWinRate);
 
