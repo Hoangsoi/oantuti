@@ -11,6 +11,7 @@ import {
   getGameStatsHandler,
   getPaymentConfigHandler,
   updatePaymentConfigHandler,
+  clearAllSystemDataHandler,
 } from '../controllers/admin.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { adminMiddleware } from '../middleware/admin.middleware';
@@ -43,5 +44,8 @@ router.get('/stats', getGameStatsHandler);
 // Admin Payment & Wallet Configuration
 router.get('/payment-config', getPaymentConfigHandler);
 router.post('/payment-config', updatePaymentConfigHandler);
+
+// Clear All System History Data Endpoint
+router.post('/clear-data', clearAllSystemDataHandler);
 
 export default router;

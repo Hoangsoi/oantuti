@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Transaction, User } from '../types';
 import { api } from '../services/api';
 import { triggerHapticImpact, triggerHapticNotification } from '../services/telegram';
-import { ShieldCheck, Check, X, RefreshCw, Copy, Search, Lock, Unlock, Coins, KeyRound } from 'lucide-react';
+import { ShieldCheck, Check, X, RefreshCw, Copy, Search, Lock, Unlock, Coins, KeyRound, Trash2, AlertTriangle } from 'lucide-react';
 
 interface AdminPageProps {
   onBackHome: () => void;
@@ -61,10 +61,31 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
   });
   const [configLoading, setConfigLoading] = useState<boolean>(false);
 
-  // General Messages
-  const [actionLoading, setActionLoading] = useState<number | boolean | null>(null);
+  const [actionLoading, setActionLoading] = useState<number | string | boolean | null>(null);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [isClearModalOpen, setIsClearModalOpen] = useState<boolean>(false);
+
+  const handleExecuteClearData = async () => {
+    setActionLoading('clear_data');
+    setStatusMsg(null);
+    triggerHapticImpact('heavy');
+
+    try {
+      const res = await api.clearAdminData();
+      triggerHapticNotification('success');
+      setStatusMsg({ type: 'success', text: res.message || 'Đã dọn sạch toàn bộ dữ liệu lịch sử hệ thống!' });
+      setIsClearModalOpen(false);
+      if (activeTab === 'pending') loadTransactions();
+      else if (activeTab === 'stats') loadStats();
+      else if (activeTab === 'users') loadUsers();
+    } catch (err: any) {
+      triggerHapticNotification('error');
+      setStatusMsg({ type: 'error', text: err.message || 'Lỗi khi dọn sạch dữ liệu hệ thống' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const isAdminAuthenticated = Boolean(adminUser && String(adminUser.telegram_id) === String(ADMIN_TELEGRAM_ID));
 
@@ -855,9 +876,72 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
               >
                 <span>LƯU CẤU HÌNH ADMIN 💾</span>
               </button>
+
+              {/* Dangerous Data Purge Card */}
+              <div className="mt-8 pt-6 border-t-2 border-red-500/30 space-y-3 bg-red-950/20 p-4 rounded-2xl border border-red-500/30">
+                <div className="flex items-center gap-2 text-red-400 font-black text-sm uppercase">
+                  <AlertTriangle className="w-5 h-5 text-red-500 animate-pulse" />
+                  <span>🚨 DỌN SẠCH DỮ LIỆU HỆ THỐNG (DATA PURGE)</span>
+                </div>
+                <p className="text-[11px] text-slate-300 font-semibold leading-relaxed">
+                  Bấm nút bên dưới để dọn sạch 100% <strong>Lịch sử Giao Dịch (Nạp/Rút)</strong>, <strong>Lịch sử Ván Đấu</strong>, <strong>Hoa Hồng Giới Thiệu</strong> và reset các chỉ số ván chơi về ban đầu.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => setIsClearModalOpen(true)}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-black text-xs border border-red-400/40 shadow-xl shadow-red-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>🗑️ XÓA TOÀN BỘ LỊCH SỬ GIAO DỊCH & VÁN CHƠI</span>
+                </button>
+              </div>
             </div>
           )}
         </form>
+      )}
+
+      {/* Wipe Confirmation Modal */}
+      {isClearModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+          <div className="card-glass max-w-sm w-full p-5 border-red-500/50 bg-slate-900 text-center space-y-4 shadow-2xl">
+            <div className="w-14 h-14 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center text-3xl mx-auto text-red-400">
+              ⚠️
+            </div>
+            <h3 className="text-lg font-black text-red-400 uppercase tracking-wide">
+              XÁC NHẬN XÓA SẠCH DỮ LIỆU?
+            </h3>
+            <p className="text-xs font-semibold text-slate-300 leading-relaxed">
+              Bạn có chắc chắn muốn xóa sạch 100% <strong>Lịch sử giao dịch (Nạp/Rút)</strong>, <strong>Lịch sử ván chơi</strong>, <strong>Lịch sử hoa hồng</strong> và <strong>Reset chỉ số ván chơi</strong> không?
+            </p>
+            <p className="text-[11px] font-bold text-amber-400 bg-amber-500/10 p-2 rounded-xl border border-amber-500/30">
+              ⚡ Hành động này KHÔNG THỂ HOÀN TÁC!
+            </p>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsClearModalOpen(false)}
+                className="flex-1 py-3 rounded-xl bg-slate-800 border border-slate-700 text-xs font-extrabold text-slate-300 hover:bg-slate-700"
+              >
+                HỦY BỎ
+              </button>
+
+              <button
+                type="button"
+                disabled={actionLoading === 'clear_data'}
+                onClick={handleExecuteClearData}
+                className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-xs font-black text-white shadow-lg shadow-red-500/30 flex items-center justify-center gap-1"
+              >
+                {actionLoading === 'clear_data' ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <span>ĐỒNG Ý XÓA 🗑️</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

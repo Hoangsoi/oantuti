@@ -399,3 +399,48 @@ export async function updatePaymentConfig(data: {
 
   return getPaymentConfig();
 }
+
+// ----------------------------------------------------------------------
+// WIPE ALL SYSTEM DATA (TRANSACTIONS, MATCHES, COMMISSIONS, ROOMS)
+// ----------------------------------------------------------------------
+export async function clearAllSystemData() {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // 1. Clear transaction history
+    await client.query('DELETE FROM transactions');
+
+    // 2. Clear match history
+    await client.query('DELETE FROM matches');
+
+    // 3. Clear referral commissions history
+    try {
+      await client.query('DELETE FROM referral_commissions');
+    } catch (e) {}
+
+    // 4. Clear daily rewards history
+    await client.query('DELETE FROM daily_rewards');
+
+    // 5. Clear completed & expired rooms history
+    await client.query("DELETE FROM rooms WHERE status IN ('completed', 'expired')");
+
+    // 6. Reset user match counters back to fresh starting values
+    await client.query(
+      `UPDATE users 
+       SET wins = 0, losses = 0, draws = 0, total_matches = 0, current_streak = 0, best_streak = 0, rating = 1000, updated_at = CURRENT_TIMESTAMP`
+    );
+
+    await client.query('COMMIT');
+    return {
+      success: true,
+      message: 'Đã dọn sạch 100% lịch sử giao dịch, lịch sử ván chơi và hoa hồng giới thiệu thành công!',
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}

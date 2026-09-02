@@ -11,6 +11,7 @@ import {
   getGameStats,
   getPaymentConfig,
   updatePaymentConfig,
+  clearAllSystemData,
 } from '../services/admin.service';
 import { sendSuccess, sendError } from '../utils/response';
 
@@ -141,5 +142,14 @@ export async function updatePaymentConfigHandler(req: Request, res: Response) {
     return sendSuccess(res, updatedConfig, 'Cập nhật cấu hình thanh toán Admin thành công!');
   } catch (error: any) {
     return sendError(res, error.message || 'Không thể cập nhật cấu hình thanh toán');
+  }
+}
+
+export async function clearAllSystemDataHandler(req: Request, res: Response) {
+  try {
+    const result = await clearAllSystemData();
+    return sendSuccess(res, result, result.message);
+  } catch (error: any) {
+    return sendError(res, error.message || 'Không thể dọn sạch dữ liệu hệ thống');
   }
 }

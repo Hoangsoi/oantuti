@@ -290,4 +290,10 @@ export const api = {
       body: JSON.stringify(data),
     });
   },
+
+  clearAdminData: async () => {
+    return request<{ success: boolean; message: string }>('/admin/clear-data', {
+      method: 'POST',
+    });
+  },
 };
