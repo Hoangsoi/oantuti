@@ -27,8 +27,8 @@ export const GamePage: React.FC<GamePageProps> = ({
   isLoading,
   errorMessage,
 }) => {
-  // Phase 1: Selecting (5s timer)
-  const [timeLeft, setTimeLeft] = useState<number>(5);
+  // Phase 1: Selecting (10s timer)
+  const [timeLeft, setTimeLeft] = useState<number>(10);
   const [selectedMove, setSelectedMove] = useState<Move | null>(null);
 
   // Phase 2: Revealing (10s countdown)
@@ -37,14 +37,26 @@ export const GamePage: React.FC<GamePageProps> = ({
   const [shuffleIndex, setShuffleIndex] = useState<number>(0);
   const [matchResult, setMatchResult] = useState<Match | null>(null);
 
-  // 1. 5-Second Selection Timer
+  // 1. 10-Second Selection Timer
   useEffect(() => {
     if (selectedMove || isRevealing || isLoading) return;
 
     if (timeLeft <= 0) {
-      const moves: Move[] = ['rock', 'paper', 'scissors'];
-      const randomMove = moves[Math.floor(Math.random() * moves.length)];
-      handleSelectMove(randomMove);
+      // User failed to select move in 10s -> Declare Timeout Loss
+      const timeoutLossMatch: Match = {
+        id: Date.now(),
+        player_id: 0,
+        opponent_type: 'bot',
+        player_move: 'rock',
+        opponent_move: 'paper',
+        result: 'lose',
+        rating_before: 1200,
+        rating_change: -8,
+        rating_after: 1192,
+        coins_change: -100,
+        created_at: new Date().toISOString(),
+      };
+      onFinishReveal(timeoutLossMatch);
       return;
     }
 

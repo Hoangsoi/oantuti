@@ -39,9 +39,46 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
 
   // Selected Move & 10s Reveal Phase
   const [mySelectedMove, setMySelectedMove] = useState<Move | null>(null);
+  const [selectionTimeLeft, setSelectionTimeLeft] = useState<number>(10);
   const [isRevealing, setIsRevealing] = useState<boolean>(false);
   const [revealTimeLeft, setRevealTimeLeft] = useState<number>(10);
   const [shuffleIndex, setShuffleIndex] = useState<number>(0);
+
+  // 10-Second Move Selection Countdown Timer in Room
+  useEffect(() => {
+    if (!room || activeTab !== 'lobby' || isRevealing) return;
+    const hasGuestJoined = !!(room.host_id && room.guest_id);
+    const isHostUser = currentUser && room.host_id === currentUser.id;
+    const myMoveLocked = isHostUser ? room.has_host_locked : room.has_guest_locked;
+
+    if (!hasGuestJoined || myMoveLocked) return;
+
+    if (selectionTimeLeft <= 0) {
+      // 10s selection timeout expired! Declare Timeout Loss
+      const betAmount = room.bet_amount || 0;
+      const timeoutLossMatch = {
+        id: room.id,
+        player_id: currentUser?.id || 0,
+        opponent_type: 'pvp',
+        player_move: 'rock' as Move,
+        opponent_move: 'paper' as Move,
+        result: 'lose' as const,
+        rating_before: currentUser?.rating || 1200,
+        rating_change: -8,
+        rating_after: Math.max(0, (currentUser?.rating || 1200) - 8),
+        coins_change: -betAmount,
+        created_at: new Date().toISOString(),
+      };
+      onFinishRoomMatch(timeoutLossMatch);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setSelectionTimeLeft((prev) => prev - 1);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [room, activeTab, isRevealing, selectionTimeLeft, currentUser, onFinishRoomMatch]);
 
   // 1. Polling Room State every 2 seconds when in room lobby
   useEffect(() => {
@@ -501,6 +538,16 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
           {/* Move Choices when room is ready */}
           {hasGuestJoined && !myMoveLocked && (
             <div className="space-y-3">
+              <div className="card-glass p-3 flex items-center justify-between border-amber-500/40 bg-amber-500/10">
+                <div className="flex items-center gap-2 text-amber-300 text-xs font-bold">
+                  <span className="animate-pulse text-base">⏳</span>
+                  <span>Thời gian chọn nước đi:</span>
+                </div>
+                <span className={`text-xl font-black ${selectionTimeLeft <= 3 ? 'text-red-500 animate-ping' : 'text-amber-400'}`}>
+                  {selectionTimeLeft}s
+                </span>
+              </div>
+
               <div className="text-center text-xs font-black text-amber-400 uppercase tracking-wider">
                 CHỌN NƯỚC ĐI CỦA BẠN:
               </div>
