@@ -6,6 +6,19 @@ function generateRoomCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+export async function getWaitingRooms(): Promise<Room[]> {
+  const res = await query(
+    `SELECT r.*,
+            h.first_name as host_name, h.photo_url as host_avatar
+     FROM rooms r
+     JOIN users h ON r.host_id = h.id
+     WHERE r.status = 'waiting'
+     ORDER BY r.created_at DESC
+     LIMIT 50`
+  );
+  return res.rows;
+}
+
 export async function createRoom(hostId: number, betAmount: number = 0): Promise<Room> {
   const safeBet = Math.max(0, Math.floor(betAmount));
 

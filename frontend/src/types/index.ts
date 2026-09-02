@@ -148,4 +148,4 @@ export interface DailyRewardTask {
   progressText?: string;
 }
 
-export type ActivePage = 'home' | 'game' | 'result' | 'leaderboard' | 'profile' | 'rewards' | 'referral' | 'room' | 'wallet' | 'admin';
+export type ActivePage = 'home' | 'game' | 'result' | 'leaderboard' | 'profile' | 'rewards' | 'referral' | 'room' | 'wallet' | 'admin' | 'lobby';

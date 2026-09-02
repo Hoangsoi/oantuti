@@ -1,7 +1,16 @@
 import { Request, Response } from 'express';
-import { createRoom, joinRoom, getRoomState, playRoomMove } from '../services/room.service';
+import { createRoom, joinRoom, getRoomState, playRoomMove, getWaitingRooms } from '../services/room.service';
 import { sendSuccess, sendError } from '../utils/response';
 import { Move } from '../types';
+
+export async function getWaitingRoomsHandler(req: Request, res: Response) {
+  try {
+    const rooms = await getWaitingRooms();
+    return sendSuccess(res, rooms, 'Lấy danh sách phòng chờ thành công');
+  } catch (error: any) {
+    return sendError(res, error.message || 'Lỗi lấy danh sách phòng chờ', 400);
+  }
+}
 
 export async function createRoomHandler(req: Request, res: Response) {
   try {

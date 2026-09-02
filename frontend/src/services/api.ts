@@ -102,6 +102,10 @@ export const api = {
   },
 
   // Room APIs
+  getWaitingRooms: async () => {
+    return request<Room[]>('/room/waiting');
+  },
+
   createRoom: async (betAmount: number = 0) => {
     return request<Room>('/room/create', {
       method: 'POST',

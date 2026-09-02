@@ -4,6 +4,7 @@ import {
   joinRoomHandler,
   getRoomHandler,
   playRoomMoveHandler,
+  getWaitingRoomsHandler,
 } from '../controllers/room.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { gamePlayRateLimiter } from '../middleware/rateLimit.middleware';
@@ -12,6 +13,7 @@ import { createRoomSchema, joinRoomSchema, roomMoveSchema } from '../validators'
 
 const router = Router();
 
+router.get('/waiting', authMiddleware, getWaitingRoomsHandler);
 router.post('/create', authMiddleware, gamePlayRateLimiter, validateBody(createRoomSchema), createRoomHandler);
 router.post('/join', authMiddleware, gamePlayRateLimiter, validateBody(joinRoomSchema), joinRoomHandler);
 router.get('/:roomCode', authMiddleware, getRoomHandler);

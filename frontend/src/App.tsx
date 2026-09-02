@@ -11,6 +11,7 @@ import { RewardsPage } from './pages/RewardsPage';
 import { RoomPage } from './pages/RoomPage';
 import { WalletPage } from './pages/WalletPage';
 import { AdminPage } from './pages/AdminPage';
+import { LobbyPage } from './pages/LobbyPage';
 import { TopupModal } from './components/TopupModal';
 import { getTelegramWebApp } from './services/telegram';
 import { api } from './services/api';
@@ -104,6 +105,18 @@ export const App: React.FC = () => {
             currentUser={user}
             onUserUpdated={(updatedUser) => setUser(updatedUser)}
             onBackHome={() => navigateTo('home')}
+          />
+        );
+      case 'lobby':
+        return (
+          <LobbyPage
+            user={user}
+            onBackHome={() => navigateTo('home')}
+            onJoinRoom={() => {
+              navigateTo('room');
+            }}
+            onPlayBot={() => navigateTo('game')}
+            onCreateRoomModal={() => navigateTo('room')}
           />
         );
       case 'admin':
