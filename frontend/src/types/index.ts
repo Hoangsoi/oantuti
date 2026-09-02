@@ -59,6 +59,10 @@ export interface Room {
   has_host_locked?: boolean;
   has_guest_locked?: boolean;
   is_bot_room?: boolean;
+  room_name?: string;
+  has_password?: boolean;
+  password?: string | null;
+  spectator_count?: number;
 }
 
 export interface BankAccount {

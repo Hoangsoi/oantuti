@@ -106,17 +106,23 @@ export const api = {
     return request<Room[]>('/room/waiting');
   },
 
-  createRoom: async (betAmount: number = 0) => {
+  createRoom: async (betAmount: number = 0, roomName?: string, password?: string) => {
     return request<Room>('/room/create', {
       method: 'POST',
-      body: JSON.stringify({ betAmount }),
+      body: JSON.stringify({ betAmount, roomName, password }),
     });
   },
 
-  joinRoom: async (roomCode: string) => {
+  joinRoom: async (roomCode: string, password?: string) => {
     return request<Room>('/room/join', {
       method: 'POST',
-      body: JSON.stringify({ roomCode }),
+      body: JSON.stringify({ roomCode, password }),
+    });
+  },
+
+  spectateRoom: async (roomCode: string) => {
+    return request<Room>(`/room/${roomCode}/spectate`, {
+      method: 'POST',
     });
   },
 

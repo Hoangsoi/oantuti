@@ -161,13 +161,17 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
     return () => clearTimeout(timer);
   }, [isRevealing, revealTimeLeft, room, currentUser, onFinishRoomMatch]);
 
+  const [customRoomName, setCustomRoomName] = useState<string>('');
+  const [customPassword, setCustomPassword] = useState<string>('');
+  const [joinPasswordInput, setJoinPasswordInput] = useState<string>('');
+
   // Create New Room
   const handleCreateRoom = async () => {
     triggerHapticImpact('medium');
     setLoading(true);
     setError(null);
     try {
-      const created = await api.createRoom(selectedBet);
+      const created = await api.createRoom(selectedBet, customRoomName, customPassword);
       setRoom(created);
       setActiveTab('lobby');
     } catch (err: any) {
@@ -189,7 +193,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
     setLoading(true);
     setError(null);
     try {
-      const joined = await api.joinRoom(code);
+      const joined = await api.joinRoom(code, joinPasswordInput);
       setRoom(joined);
       setActiveTab('lobby');
     } catch (err: any) {
@@ -287,6 +291,20 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
           <div className="card-glass p-5 space-y-4 border-amber-500/30">
             <div className="text-left space-y-2">
               <label className="text-xs font-black text-amber-400 uppercase tracking-wider block">
+                TÊN PHÒNG ĐẤU:
+              </label>
+              <input
+                type="text"
+                maxLength={100}
+                placeholder="Nhập tên phòng (VD: Phòng Thách Đấu Solo)"
+                value={customRoomName}
+                onChange={(e) => setCustomRoomName(e.target.value)}
+                className="w-full p-3 bg-slate-950 border border-slate-700 text-white font-bold text-xs rounded-xl focus:outline-none focus:border-amber-500"
+              />
+            </div>
+
+            <div className="text-left space-y-2">
+              <label className="text-xs font-black text-amber-400 uppercase tracking-wider block">
                 CHỌN MỨC CƯỢC PHÒNG:
               </label>
               <div className="grid grid-cols-4 gap-2">
@@ -304,6 +322,23 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="text-left space-y-2">
+              <label className="text-xs font-black text-amber-400 uppercase tracking-wider block">
+                KHÓA MẬT KHẨU PHÒNG (TÙY CHỌN):
+              </label>
+              <input
+                type="password"
+                maxLength={20}
+                placeholder="Nhập khóa phòng (Để trống nếu không khóa)"
+                value={customPassword}
+                onChange={(e) => setCustomPassword(e.target.value)}
+                className="w-full p-3 bg-slate-950 border border-slate-700 text-amber-400 font-black text-xs rounded-xl focus:outline-none focus:border-amber-500"
+              />
+              <p className="text-[10px] text-slate-400 font-normal">
+                💡 Nếu để trống, phòng sẽ hiển thị <strong>"Không khóa"</strong> tại sảnh và cho phép mọi người tham gia hoặc xem trực tiếp.
+              </p>
             </div>
 
             {/* Platform 5% Fee Warning */}
@@ -328,22 +363,30 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
           <div className="card-glass p-5 space-y-3 border-slate-700">
             <div className="flex items-center gap-2 text-xs font-black text-slate-300 uppercase">
               <KeyRound className="w-4 h-4 text-blue-400" />
-              <span>NHẬP MÃ PHÒNG 6 SỐ:</span>
+              <span>NHẬP MÃ PHÒNG & MẬT KHẨU (NẾU CÓ):</span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="space-y-2">
               <input
                 type="number"
-                placeholder="VD: 839210"
+                placeholder="Mã phòng (VD: 839210)"
                 value={inputCode}
                 onChange={(e) => setInputCode(e.target.value)}
                 maxLength={6}
-                className="bg-slate-900 border border-slate-700 text-amber-400 font-black text-xl text-center tracking-widest py-3 px-4 rounded-xl w-full focus:outline-none focus:border-amber-400"
+                className="bg-slate-900 border border-slate-700 text-amber-400 font-black text-lg text-center tracking-widest p-3 rounded-xl w-full focus:outline-none focus:border-amber-400"
+              />
+              <input
+                type="password"
+                placeholder="Mật khẩu phòng (Để trống nếu phòng không khóa)"
+                value={joinPasswordInput}
+                onChange={(e) => setJoinPasswordInput(e.target.value)}
+                maxLength={20}
+                className="bg-slate-900 border border-slate-700 text-amber-300 font-bold text-xs text-center p-3 rounded-xl w-full focus:outline-none focus:border-amber-400"
               />
               <button
                 onClick={() => handleJoinRoom()}
                 disabled={loading || !inputCode}
-                className="py-3 px-5 btn-game-secondary text-sm font-black whitespace-nowrap"
+                className="w-full py-3 btn-game-secondary text-sm font-black"
               >
                 VÀO PHÒNG
               </button>
@@ -432,6 +475,27 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
       ) : (
         /* NORMAL LOBBY / SELECTION PHASE */
         <div className="my-auto space-y-5">
+          {/* Room Name & Spectator Info Banner */}
+          <div className="card-glass p-3 border-slate-700/80 bg-slate-900/90 flex items-center justify-between text-xs font-extrabold">
+            <span className="text-amber-400 font-black truncate max-w-[170px]">
+              {room.room_name || 'Phòng Đấu Cược'}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300 text-[10px] font-bold flex items-center gap-1">
+                👁️ {room.spectator_count || 0} Người xem
+              </span>
+              {room.has_password ? (
+                <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-bold border border-amber-500/30">
+                  🔒 Có khóa
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/30">
+                  🔓 Không khóa
+                </span>
+              )}
+            </div>
+          </div>
+
           {/* Room Bet & Payout Info Banner */}
           <div className="card-glass p-3 border-amber-500/30 bg-amber-500/10 flex items-center justify-between text-xs font-extrabold">
             <div className="flex items-center gap-1.5 text-amber-400">

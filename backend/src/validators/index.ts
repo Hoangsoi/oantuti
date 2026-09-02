@@ -16,10 +16,13 @@ export const playGameSchema = z.object({
 
 export const createRoomSchema = z.object({
   betAmount: z.number().int().min(0).max(1000000, 'Mức cược tối đa 1,000,000 Xu'),
+  roomName: z.string().max(100).optional(),
+  password: z.string().max(20).optional(),
 });
 
 export const joinRoomSchema = z.object({
   roomCode: z.string().length(6, 'Mã phòng phải có 6 chữ số'),
+  password: z.string().max(20).optional(),
 });
 
 export const roomMoveSchema = z.object({

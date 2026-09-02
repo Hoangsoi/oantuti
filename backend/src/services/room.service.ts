@@ -54,11 +54,12 @@ export async function ensureVirtualRooms(): Promise<void> {
 
         const betAmount = BET_TIERS[Math.floor(Math.random() * BET_TIERS.length)];
         let roomCode = generateRoomCode();
+        const roomName = `Phòng của ${profile.name}`;
 
         await query(
-          `INSERT INTO rooms (room_code, host_id, bet_amount, status, is_bot_room)
-           VALUES ($1, $2, $3, 'waiting', true)`,
-          [roomCode, botUser.id, betAmount]
+          `INSERT INTO rooms (room_code, host_id, bet_amount, room_name, password, status, is_bot_room)
+           VALUES ($1, $2, $3, $4, NULL, 'waiting', true)`,
+          [roomCode, botUser.id, betAmount, roomName]
         );
       }
     }
@@ -68,11 +69,11 @@ export async function ensureVirtualRooms(): Promise<void> {
 }
 
 export async function getWaitingRooms(): Promise<Room[]> {
-  // Auto replenish virtual bot rooms to ensure lobby is always active
   await ensureVirtualRooms();
 
   const res = await query(
     `SELECT r.*,
+            (r.password IS NOT NULL AND r.password != '') as has_password,
             h.first_name as host_name, h.photo_url as host_avatar
      FROM rooms r
      JOIN users h ON r.host_id = h.id
@@ -80,19 +81,27 @@ export async function getWaitingRooms(): Promise<Room[]> {
      ORDER BY r.created_at DESC
      LIMIT 50`
   );
-  return res.rows;
+  return res.rows.map((r) => ({ ...r, password: undefined }));
 }
 
-export async function createRoom(hostId: number, betAmount: number = 0): Promise<Room> {
+export async function createRoom(
+  hostId: number,
+  betAmount: number = 0,
+  roomName?: string,
+  password?: string
+): Promise<Room> {
   const safeBet = Math.max(0, Math.floor(betAmount));
 
-  // Check host coin balance if bet is specified
-  if (safeBet > 0) {
-    const userRes = await query<User>('SELECT coins FROM users WHERE id = $1', [hostId]);
-    if (userRes.rows.length === 0 || userRes.rows[0].coins < safeBet) {
-      throw new Error(`Số dư Xu Game của bạn không đủ (${safeBet.toLocaleString()} Xu). Vui lòng nạp thêm Xu Game!`);
-    }
+  const userRes = await query<User>('SELECT first_name, coins FROM users WHERE id = $1', [hostId]);
+  if (userRes.rows.length === 0) throw new Error('Người dùng không tồn tại');
+  const user = userRes.rows[0];
+
+  if (safeBet > 0 && user.coins < safeBet) {
+    throw new Error(`Số dư Xu Game của bạn không đủ (${safeBet.toLocaleString()} Xu). Vui lòng nạp thêm Xu Game!`);
   }
+
+  const finalRoomName = roomName && roomName.trim() ? roomName.trim() : `Phòng của ${user.first_name || 'Chủ phòng'}`;
+  const finalPassword = password && password.trim() ? password.trim() : null;
 
   let roomCode = generateRoomCode();
   let attempts = 0;
@@ -105,15 +114,15 @@ export async function createRoom(hostId: number, betAmount: number = 0): Promise
   }
 
   await query(
-    `INSERT INTO rooms (room_code, host_id, bet_amount, status, is_bot_room)
-     VALUES ($1, $2, $3, 'waiting', false)`,
-    [roomCode, hostId, safeBet]
+    `INSERT INTO rooms (room_code, host_id, bet_amount, room_name, password, status, is_bot_room)
+     VALUES ($1, $2, $3, $4, $5, 'waiting', false)`,
+    [roomCode, hostId, safeBet, finalRoomName, finalPassword]
   );
 
   return getRoomState(hostId, roomCode);
 }
 
-export async function joinRoom(guestId: number, roomCode: string): Promise<Room> {
+export async function joinRoom(guestId: number, roomCode: string, inputPassword?: string): Promise<Room> {
   const cleanCode = roomCode.trim();
   const roomRes = await query<Room>('SELECT * FROM rooms WHERE room_code = $1', [cleanCode]);
 
@@ -127,6 +136,13 @@ export async function joinRoom(guestId: number, roomCode: string): Promise<Room>
     return getRoomState(guestId, cleanCode);
   }
 
+  // Password verification if room is password protected
+  if (room.password && room.password.trim() !== '') {
+    if (!inputPassword || inputPassword.trim() !== room.password.trim()) {
+      throw new Error('Mật khẩu phòng đấu không chính xác! Vui lòng nhập đúng khóa phòng.');
+    }
+  }
+
   if (room.status === 'completed') {
     throw new Error('Phòng đấu này đã kết thúc');
   }
@@ -135,7 +151,6 @@ export async function joinRoom(guestId: number, roomCode: string): Promise<Room>
     throw new Error('Phòng đấu này đã đủ 2 người chơi');
   }
 
-  // Check guest coin balance if room has bet_amount
   if (room.bet_amount > 0) {
     const guestRes = await query<User>('SELECT coins FROM users WHERE id = $1', [guestId]);
     if (guestRes.rows.length === 0 || guestRes.rows[0].coins < room.bet_amount) {
@@ -153,10 +168,25 @@ export async function joinRoom(guestId: number, roomCode: string): Promise<Room>
   return getRoomState(guestId, cleanCode);
 }
 
+export async function spectateRoom(userId: number, roomCode: string): Promise<Room> {
+  const cleanCode = roomCode.trim();
+  const roomRes = await query<Room>('SELECT * FROM rooms WHERE room_code = $1', [cleanCode]);
+  if (roomRes.rows.length === 0) throw new Error('Phòng đấu không tồn tại');
+
+  const room = roomRes.rows[0];
+  if (room.password && room.password.trim() !== '') {
+    throw new Error('Phòng có khóa mật khẩu không hỗ trợ vào xem trực tiếp');
+  }
+
+  await query('UPDATE rooms SET spectator_count = spectator_count + 1 WHERE id = $1', [room.id]);
+  return getRoomState(userId, cleanCode);
+}
+
 export async function getRoomState(userId: number, roomCode: string): Promise<Room> {
   const cleanCode = roomCode.trim();
   const res = await query(
     `SELECT r.*,
+            (r.password IS NOT NULL AND r.password != '') as has_password,
             h.first_name as host_name, h.photo_url as host_avatar,
             g.first_name as guest_name, g.photo_url as guest_avatar
      FROM rooms r
@@ -187,6 +217,7 @@ export async function getRoomState(userId: number, roomCode: string): Promise<Ro
 
   return {
     ...room,
+    password: undefined, // Never leak plain room password
     host_move: safeHostMove,
     guest_move: safeGuestMove,
     has_host_locked,
@@ -237,17 +268,14 @@ export async function playRoomMove(userId: number, roomCode: string, move: Move)
     // VIRTUAL BOT ROOM RIGGED MOVE RESOLUTION ENGINE
     // ----------------------------------------------------------------------
     if (room.is_bot_room && isGuest && !newHostMove) {
-      // Calculate Bot host move based on Admin configured botWinRate % (Default 70%)
       const botWinRate = parseInt(process.env.BOT_WIN_RATE || '70', 10);
       const roll = Math.floor(Math.random() * 100);
 
       if (roll < botWinRate) {
-        // Bot wins (70% probability): Bot chooses move that BEATS guest move
         if (newGuestMove === 'rock') newHostMove = 'paper';
         else if (newGuestMove === 'paper') newHostMove = 'scissors';
         else if (newGuestMove === 'scissors') newHostMove = 'rock';
       } else {
-        // Player wins (30% probability): Bot chooses move that LOSES to guest move
         if (newGuestMove === 'rock') newHostMove = 'scissors';
         else if (newGuestMove === 'paper') newHostMove = 'rock';
         else if (newGuestMove === 'scissors') newHostMove = 'paper';
@@ -275,7 +303,7 @@ export async function playRoomMove(userId: number, roomCode: string, move: Move)
 
       const betAmount = room.bet_amount || 0;
       const totalPot = betAmount * 2;
-      houseFee = Math.floor(totalPot * 0.05); // Platform keeps 5% fee from winner
+      houseFee = Math.floor(totalPot * 0.05);
       const winnerNetGain = betAmount - houseFee;
 
       if (hostOutcome === 'win') {
@@ -334,7 +362,6 @@ export async function playRoomMove(userId: number, roomCode: string, move: Move)
 
     await client.query('COMMIT');
 
-    // Trigger async replenishment of virtual rooms so fresh rooms appear immediately
     ensureVirtualRooms();
 
     return getRoomState(userId, roomCode);

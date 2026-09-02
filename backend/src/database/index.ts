@@ -40,6 +40,9 @@ export const initDatabase = async () => {
     await pool.query('ALTER TABLE rooms ADD COLUMN IF NOT EXISTS bet_amount INT DEFAULT 0 NOT NULL');
     await pool.query('ALTER TABLE rooms ADD COLUMN IF NOT EXISTS fee_amount INT DEFAULT 0 NOT NULL');
     await pool.query('ALTER TABLE rooms ADD COLUMN IF NOT EXISTS is_bot_room BOOLEAN DEFAULT false NOT NULL');
+    await pool.query("ALTER TABLE rooms ADD COLUMN IF NOT EXISTS room_name VARCHAR(100) DEFAULT 'Phòng Đấu Cược'");
+    await pool.query('ALTER TABLE rooms ADD COLUMN IF NOT EXISTS password VARCHAR(20) DEFAULT NULL');
+    await pool.query('ALTER TABLE rooms ADD COLUMN IF NOT EXISTS spectator_count INT DEFAULT 0 NOT NULL');
 
     console.log('✅ Cơ sở dữ liệu Neon PostgreSQL đã được khởi tạo schema và migrations thành công.');
   } catch (error) {

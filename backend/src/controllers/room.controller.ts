@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { createRoom, joinRoom, getRoomState, playRoomMove, getWaitingRooms, resetRoom, leaveRoom } from '../services/room.service';
+import { createRoom, joinRoom, getRoomState, playRoomMove, getWaitingRooms, resetRoom, leaveRoom, spectateRoom } from '../services/room.service';
 import { sendSuccess, sendError } from '../utils/response';
 import { Move } from '../types';
 
@@ -15,9 +15,9 @@ export async function getWaitingRoomsHandler(req: Request, res: Response) {
 export async function createRoomHandler(req: Request, res: Response) {
   try {
     if (!req.user) return sendError(res, 'Chưa đăng nhập', 401);
-    const { betAmount } = req.body;
+    const { betAmount, roomName, password } = req.body;
     const betNum = parseInt(betAmount, 10) || 0;
-    const room = await createRoom(req.user.id, betNum);
+    const room = await createRoom(req.user.id, betNum, roomName, password);
     return sendSuccess(res, room, 'Tạo phòng đấu thành công');
   } catch (error: any) {
     return sendError(res, error.message || 'Lỗi khi tạo phòng đấu', 400);
@@ -27,12 +27,23 @@ export async function createRoomHandler(req: Request, res: Response) {
 export async function joinRoomHandler(req: Request, res: Response) {
   try {
     if (!req.user) return sendError(res, 'Chưa đăng nhập', 401);
-    const { roomCode } = req.body;
+    const { roomCode, password } = req.body;
     if (!roomCode) return sendError(res, 'Thiếu mã phòng đấu', 400);
-    const room = await joinRoom(req.user.id, roomCode);
+    const room = await joinRoom(req.user.id, roomCode, password);
     return sendSuccess(res, room, 'Tham gia phòng thành công');
   } catch (error: any) {
     return sendError(res, error.message || 'Không thể tham gia phòng', 400);
+  }
+}
+
+export async function spectateRoomHandler(req: Request, res: Response) {
+  try {
+    if (!req.user) return sendError(res, 'Chưa đăng nhập', 401);
+    const roomCode = req.params.roomCode;
+    const room = await spectateRoom(req.user.id, roomCode);
+    return sendSuccess(res, room, 'Đã vào xem phòng đấu');
+  } catch (error: any) {
+    return sendError(res, error.message || 'Không thể vào xem phòng đấu', 400);
   }
 }
 
