@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ReferralStat } from '../types';
 import { api } from '../services/api';
 import { shareTelegramLink } from '../services/telegram';
-import { Users, Share2, Copy, Check, Network, ShieldCheck } from 'lucide-react';
+import { Users, Share2, Copy, Check, Network } from 'lucide-react';
 
 export const ReferralPage: React.FC = () => {
   const [stat, setStat] = useState<ReferralStat | null>(null);
@@ -87,18 +87,8 @@ export const ReferralPage: React.FC = () => {
         <div className="flex items-center justify-between border-b border-slate-800 pb-2">
           <div className="flex items-center gap-1.5 text-xs font-black text-amber-400 uppercase tracking-wider">
             <Network className="w-4 h-4 text-amber-400" />
-            <span>CƠ CHẾ PHÂN CHIA PHÍ 5%</span>
+            <span>HOA HỒNG GIỚI THIỆU</span>
           </div>
-          <span className="text-[10px] text-slate-400 font-bold">Sàn: 3.0% • Ref: 2.0%</span>
-        </div>
-
-        {/* Platform Rake Note */}
-        <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-300 font-semibold flex items-center justify-between">
-          <span className="flex items-center gap-1 text-slate-400">
-            <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Phí sàn giữ lại:</span>
-          </span>
-          <span className="font-black text-indigo-400">3.0% giá phòng</span>
         </div>
 
         {/* 5 Tiers Grid */}
