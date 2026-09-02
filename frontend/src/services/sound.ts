@@ -2,6 +2,13 @@
 
 let audioCtx: AudioContext | null = null;
 let soundEnabled: boolean = localStorage.getItem('oantuti_sound') !== 'false';
+let bgmInterval: any = null;
+let bgmStep = 0;
+
+const BGM_MELODY = [
+  261.63, 329.63, 392.0, 440.0, 523.25, 392.0, 329.63, 261.63,
+  329.63, 392.0, 523.25, 659.25, 523.25, 392.0, 329.63, 261.63
+];
 
 function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null;
@@ -21,11 +28,54 @@ export function isSoundEnabled(): boolean {
   return soundEnabled;
 }
 
+export function startBgm() {
+  if (!soundEnabled || bgmInterval) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  bgmStep = 0;
+  bgmInterval = setInterval(() => {
+    if (!soundEnabled) {
+      stopBgm();
+      return;
+    }
+    const freq = BGM_MELODY[bgmStep % BGM_MELODY.length];
+    bgmStep++;
+
+    try {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+      gain.gain.setValueAtTime(0.025, ctx.currentTime); // Soft relaxing BGM volume
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.35);
+    } catch (e) {}
+  }, 400);
+}
+
+export function stopBgm() {
+  if (bgmInterval) {
+    clearInterval(bgmInterval);
+    bgmInterval = null;
+  }
+}
+
 export function toggleSound(): boolean {
   soundEnabled = !soundEnabled;
   localStorage.setItem('oantuti_sound', soundEnabled ? 'true' : 'false');
   if (soundEnabled) {
     playClickSound();
+    startBgm();
+  } else {
+    stopBgm();
   }
   return soundEnabled;
 }

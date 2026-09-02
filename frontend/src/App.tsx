@@ -16,8 +16,25 @@ import { LobbyPage } from './pages/LobbyPage';
 import { TopupModal } from './components/TopupModal';
 import { getTelegramWebApp } from './services/telegram';
 import { api } from './services/api';
+import { startBgm } from './services/sound';
 
 export const App: React.FC = () => {
+  // Start BGM on user interaction (adhering to browser autoplay policy)
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      startBgm();
+      window.removeEventListener('click', handleFirstInteraction);
+      window.removeEventListener('touchstart', handleFirstInteraction);
+    };
+
+    window.addEventListener('click', handleFirstInteraction);
+    window.addEventListener('touchstart', handleFirstInteraction);
+
+    return () => {
+      window.removeEventListener('click', handleFirstInteraction);
+      window.removeEventListener('touchstart', handleFirstInteraction);
+    };
+  }, []);
   const {
     user,
     setUser,
