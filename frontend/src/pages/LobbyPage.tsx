@@ -22,7 +22,7 @@ export const LobbyPage: React.FC<LobbyPageProps> = ({
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [joiningCode, setJoiningCode] = useState<string | null>(null);
-  const [filterTier, setFilterTier] = useState<'all' | 'free' | '5k' | '10k' | '50k'>('all');
+  const [filterTier, setFilterTier] = useState<string>('all');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Room Password Modal State
@@ -104,8 +104,11 @@ export const LobbyPage: React.FC<LobbyPageProps> = ({
 
   const filteredRooms = rooms.filter((r) => {
     if (filterTier === 'free') return r.bet_amount === 0;
-    if (filterTier === '5k') return r.bet_amount === 5000;
-    if (filterTier === '10k') return r.bet_amount === 10000;
+    if (filterTier === 'under_10k') return r.bet_amount > 0 && r.bet_amount < 10000;
+    if (filterTier === '10k_50k') return r.bet_amount >= 10000 && r.bet_amount <= 50000;
+    if (filterTier === 'over_50k') return r.bet_amount > 50000;
+    if (filterTier === '5k') return r.bet_amount > 0 && r.bet_amount <= 5000;
+    if (filterTier === '10k') return r.bet_amount > 5000 && r.bet_amount <= 10000;
     if (filterTier === '50k') return r.bet_amount >= 50000;
     return true;
   });
@@ -171,15 +174,13 @@ export const LobbyPage: React.FC<LobbyPageProps> = ({
 
       {/* Filter Tier Tabs */}
       <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-        {(
-          [
-            { id: 'all', label: 'Tất cả 🌐' },
-            { id: 'free', label: 'Miễn phí 🎁' },
-            { id: '5k', label: '5k Xu 🪙' },
-            { id: '10k', label: '10k Xu 🪙' },
-            { id: '50k', label: '50k+ Xu 💎' },
-          ] as const
-        ).map((t) => (
+        {[
+          { id: 'all', label: 'Tất cả 🌐' },
+          { id: 'free', label: 'Miễn phí 🎁' },
+          { id: 'under_10k', label: '< 10k Xu 🪙' },
+          { id: '10k_50k', label: '10k - 50k 🪙' },
+          { id: 'over_50k', label: '> 50k Xu 💎' },
+        ].map((t) => (
           <button
             key={t.id}
             onClick={() => setFilterTier(t.id)}
