@@ -9,7 +9,7 @@ import { Users, Plus, KeyRound, Copy, Share2, Check, Lock, Coins } from 'lucide-
 interface RoomPageProps {
   currentUser: User | null;
   initialRoom?: Room | null;
-  onFinishRoomMatch: (matchResult: any) => void;
+  onFinishRoomMatch: (matchResult: any, roomObj?: Room | null) => void;
   onBackHome: () => void;
   onOpenTopup: () => void;
 }
@@ -175,7 +175,10 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
           created_at: new Date().toISOString(),
         };
 
-        onFinishRoomMatch(simulatedMatch);
+        setMySelectedMove(null);
+        setIsRevealing(false);
+        setRevealTimeLeft(10);
+        onFinishRoomMatch(simulatedMatch, room);
       }
       return;
     }

@@ -126,7 +126,8 @@ export const App: React.FC = () => {
           <RoomPage
             currentUser={user}
             initialRoom={currentRoom}
-            onFinishRoomMatch={(simulatedMatch) => {
+            onFinishRoomMatch={(simulatedMatch, roomObj) => {
+              if (roomObj) setCurrentRoom(roomObj);
               showResult(simulatedMatch);
             }}
             onBackHome={() => navigateTo('home')}

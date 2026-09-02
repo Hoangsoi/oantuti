@@ -308,8 +308,19 @@ export async function playRoomMove(userId: number, roomCode: string, move: Move)
 
     const room = roomRes.rows[0];
 
+    // If room is completed from a previous round, auto-reset it for the new round
     if (room.status === 'completed') {
-      throw new Error('Trận đấu phòng này đã hoàn thành');
+      await client.query(
+        `UPDATE rooms 
+         SET host_move = NULL, guest_move = NULL, status = CASE WHEN guest_id IS NOT NULL THEN 'ready' ELSE 'waiting' END, winner_id = NULL, result = NULL, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1`,
+        [room.id]
+      );
+      room.host_move = null;
+      room.guest_move = null;
+      room.status = room.guest_id ? 'ready' : 'waiting';
+      room.winner_id = null;
+      room.result = null;
     }
 
     const isHost = Number(room.host_id) === Number(userId);
