@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const authSchema = z.object({
-  initData: z.string().min(1, 'initData không được để trống'),
+  initData: z.string().optional(),
   refCode: z.string().max(50).optional(),
 });
 
