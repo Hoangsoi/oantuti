@@ -470,27 +470,35 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
           </p>
 
           {/* Both Choices Mystery Box */}
-          <div className="card-glass p-5 w-full border-slate-700/80 my-4">
-            <div className="grid grid-cols-2 gap-4 items-center">
-              <div className="flex flex-col items-center">
-                <span className="text-[11px] font-black text-amber-400 uppercase tracking-widest mb-2 flex items-center gap-1">
-                  <Lock className="w-3 h-3" /> BẠN (ĐÃ CHỌN)
-                </span>
-                <div className="w-20 h-20 rounded-2xl bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center text-4xl shadow-inner mb-2 animate-bounce">
-                  {mySelectedMove ? MOVE_EMOJI[mySelectedMove].emoji : '❓'}
-                </div>
-              </div>
+          {(() => {
+            const isHostUser = currentUser ? room.host_id === currentUser.id : false;
+            const myMoveFromRoom = isHostUser ? room.host_move : room.guest_move;
+            const myMoveToDisplay = mySelectedMove || myMoveFromRoom;
 
-              <div className="flex flex-col items-center border-l border-slate-700/80">
-                <span className="text-[11px] font-black text-indigo-400 uppercase tracking-widest mb-2">
-                  ĐỐI THỦ
-                </span>
-                <div className="w-20 h-20 rounded-2xl bg-indigo-500/20 border-2 border-indigo-400 flex items-center justify-center text-4xl shadow-inner mb-2 animate-pulse">
-                  {SHUFFLE_EMOJIS[shuffleIndex]}
+            return (
+              <div className="card-glass p-5 w-full border-slate-700/80 my-4">
+                <div className="grid grid-cols-2 gap-4 items-center">
+                  <div className="flex flex-col items-center">
+                    <span className="text-[11px] font-black text-amber-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                      <Lock className="w-3 h-3" /> BẠN (ĐÃ CHỌN)
+                    </span>
+                    <div className="w-20 h-20 rounded-2xl bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center text-4xl shadow-inner mb-2 animate-bounce">
+                      {myMoveToDisplay && MOVE_EMOJI[myMoveToDisplay] ? MOVE_EMOJI[myMoveToDisplay].emoji : '❓'}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center border-l border-slate-700/80">
+                    <span className="text-[11px] font-black text-indigo-400 uppercase tracking-widest mb-2">
+                      ĐỐI THỦ
+                    </span>
+                    <div className="w-20 h-20 rounded-2xl bg-indigo-500/20 border-2 border-indigo-400 flex items-center justify-center text-4xl shadow-inner mb-2 animate-pulse">
+                      {SHUFFLE_EMOJIS[shuffleIndex]}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
+            );
+          })()}
         </div>
       ) : (
         /* NORMAL LOBBY / SELECTION PHASE */
