@@ -1,6 +1,14 @@
 import { LeaderboardData, Match, Move, ReferralStat, DailyRewardTask, User, Room, WalletData, BankAccount, Transaction } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+let defaultApiUrl = 'http://localhost:5000/api';
+if (typeof window !== 'undefined' && window.location.hostname.includes('onrender.com')) {
+  const host = window.location.hostname;
+  if (host.includes('oantuti')) {
+    defaultApiUrl = 'https://oantuti-api.onrender.com/api';
+  }
+}
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || defaultApiUrl;
 
 let authToken: string | null = localStorage.getItem('oantuti_token');
 
