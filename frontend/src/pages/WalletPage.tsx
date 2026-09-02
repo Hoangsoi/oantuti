@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { User, WalletData, Transaction } from '../types';
 import { api } from '../services/api';
-import { shareTelegramLink, openTelegramDirectChat, triggerHapticImpact, triggerHapticNotification } from '../services/telegram';
-import { Copy, Check, Wallet as WalletIcon, Building, MessageCircle, Send } from 'lucide-react';
+import { openTelegramDirectChat, triggerHapticImpact, triggerHapticNotification } from '../services/telegram';
+import { Copy, Check, Wallet as WalletIcon, Building, MessageCircle } from 'lucide-react';
 
 interface WalletPageProps {
   currentUser: User | null;
@@ -95,10 +95,13 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
       : `💬 BÁO YÊU CẦU RÚT TIỀN (@${ADMIN_TELEGRAM_USERNAME})\n-----------------------\n🔑 Mã đơn rút: #${tx.id}\n👤 Khách hàng: ${currentUser?.first_name} (ID: ${currentUser?.id})\n🏦 Nơi nhận: ${bankDetailText}\n🪙 Số Xu rút: -${tx.coins.toLocaleString()} Xu\n💵 Số tiền thực nhận: ${Number(tx.amount).toLocaleString()} ${tx.payment_method === 'usdt' ? 'USDT' : 'VNĐ'}\n👉 Vui lòng kiểm tra và chuyển tiền giúp tôi!`;
   };
 
-  const handleSendPrefilledMessage = (tx: Transaction) => {
+  const handleOpenDirectAdminChat = (tx: Transaction) => {
     const text = getAdminNotificationText(tx);
+    // 1. Copy formatted order details to clipboard automatically
     navigator.clipboard.writeText(text);
-    shareTelegramLink(`https://t.me/${ADMIN_TELEGRAM_USERNAME}`, text);
+
+    // 2. Open private chat window with Admin directly without SHARE dialog
+    openTelegramDirectChat(ADMIN_TELEGRAM_USERNAME);
   };
 
   // Submit Link Bank
@@ -141,8 +144,8 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
       const tx = await api.deposit(depositMethod, amt, depositMemo || defaultMemo);
       setCreatedTx(tx);
       triggerHapticNotification('success');
-      setSuccessMsg(`Yêu cầu nạp tiền #${tx.id} đã khởi tạo thành công! Bấm nút bên dưới để gửi tin nhắn tự động điền sẵn nội dung cho Admin (@${ADMIN_TELEGRAM_USERNAME}).`);
-      handleSendPrefilledMessage(tx);
+      setSuccessMsg(`Yêu cầu nạp tiền #${tx.id} đã khởi tạo thành công! Bấm nút bên dưới để mở khung chat trực tiếp với Admin (@${ADMIN_TELEGRAM_USERNAME}).`);
+      handleOpenDirectAdminChat(tx);
       loadWallet();
     } catch (err: any) {
       triggerHapticNotification('error');
@@ -175,8 +178,8 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
       const result = await api.withdraw(withdrawMethod, coins);
       setCreatedTx(result.transaction);
       triggerHapticNotification('success');
-      setSuccessMsg(`Yêu cầu rút #${result.transaction.id} (${coins.toLocaleString()} Xu) đã gửi thành công! Bấm nút bên dưới để gửi tin nhắn tự động điền sẵn nội dung cho Admin (@${ADMIN_TELEGRAM_USERNAME}).`);
-      handleSendPrefilledMessage(result.transaction);
+      setSuccessMsg(`Yêu cầu rút #${result.transaction.id} (${coins.toLocaleString()} Xu) đã gửi thành công! Bấm nút bên dưới để mở khung chat trực tiếp với Admin (@${ADMIN_TELEGRAM_USERNAME}).`);
+      handleOpenDirectAdminChat(result.transaction);
       onUserUpdated(result.updatedUser);
       loadWallet();
     } catch (err: any) {
@@ -277,29 +280,25 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
           {createdTx && (
             <div className="space-y-2 pt-1">
               <button
-                onClick={() => handleSendPrefilledMessage(createdTx)}
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all"
+                onClick={() => handleOpenDirectAdminChat(createdTx)}
+                className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all"
               >
                 <MessageCircle className="w-4 h-4 text-amber-400" />
-                <span>🚀 GỬI THÔNG BÁO TỰ ĐỘNG CHO ADMIN (# {createdTx.id})</span>
+                <span>💬 NHẮN TRỰC TIẾP ADMIN @ottadmin2026 (# {createdTx.id})</span>
               </button>
 
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => openTelegramDirectChat(ADMIN_TELEGRAM_USERNAME)}
-                  className="py-2.5 px-3 rounded-xl bg-slate-800 text-amber-400 font-extrabold text-[11px] border border-slate-700 flex items-center justify-center gap-1.5 active:scale-95"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>CHAT VỚI ADMIN</span>
-                </button>
-
+              <div className="flex items-center justify-between gap-2 pt-1">
                 <button
                   onClick={() => handleCopy(getAdminNotificationText(createdTx), 'admin_msg')}
-                  className="py-2.5 px-3 rounded-xl bg-slate-800 text-slate-300 font-extrabold text-[11px] border border-slate-700 flex items-center justify-center gap-1.5 active:scale-95"
+                  className="w-full py-2.5 px-3 rounded-xl bg-slate-800 text-slate-300 font-extrabold text-[11px] border border-slate-700 flex items-center justify-center gap-1.5 active:scale-95"
                 >
                   {copiedKey === 'admin_msg' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedKey === 'admin_msg' ? 'ĐÃ SAO CHÉP' : 'SAO CHÉP NỘI DUNG'}</span>
+                  <span>{copiedKey === 'admin_msg' ? 'ĐÃ SAO CHÉP MÃ ĐƠN' : 'SAO CHÉP NỘI DUNG ĐƠN'}</span>
                 </button>
+              </div>
+
+              <div className="text-[11px] text-slate-400 font-semibold text-center pt-0.5">
+                (Đã tự động sao chép mã đơn. Mở chat Admin ➔ Bấm <strong>Dán (Paste)</strong> để gửi ngay)
               </div>
             </div>
           )}
