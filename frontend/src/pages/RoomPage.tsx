@@ -224,10 +224,6 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
   const handleSelectMove = async (move: Move) => {
     if (!room || mySelectedMove || loading) return;
     setMySelectedMove(move);
-    try {
-      localStorage.setItem(`room_move_${room.room_code}`, move);
-    } catch (e) {}
-
     setLoading(true);
     try {
       const updated = await api.playRoomMove(room.room_code, move);
@@ -492,8 +488,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
           {(() => {
             const isHostUser = currentUser ? Number(room.host_id) === Number(currentUser.id) : false;
             const myMoveFromRoom = isHostUser ? room.host_move : room.guest_move;
-            const localSavedMove = typeof window !== 'undefined' ? (localStorage.getItem(`room_move_${room.room_code}`) as Move | null) : null;
-            const myMoveToDisplay = mySelectedMove || myMoveFromRoom || localSavedMove;
+            const myMoveToDisplay = mySelectedMove || myMoveFromRoom;
 
             return (
               <div className="card-glass p-5 w-full border-slate-700/80 my-4">
