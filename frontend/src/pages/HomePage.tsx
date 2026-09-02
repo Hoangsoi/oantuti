@@ -111,8 +111,8 @@ export const HomePage: React.FC<HomePageProps> = ({ user, onNavigate }) => {
               <UserCheck className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-xs font-bold text-white">Hồ Sơ Của Tôi</div>
-              <div className="text-[10px] text-slate-400 font-semibold">Chỉ số cá nhân</div>
+              <div className="text-xs font-bold text-white">Hồ Sơ & Lịch Sử</div>
+              <div className="text-[10px] text-slate-400 font-semibold">Xem ván đấu</div>
             </div>
           </button>
         </div>

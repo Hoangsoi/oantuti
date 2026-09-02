@@ -1,13 +1,39 @@
-import React from 'react';
-import { User, ActivePage } from '../types';
-import { Trophy, Swords, Flame, CheckCircle, XCircle, MinusCircle, Percent, Calendar, UserCheck, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, ActivePage, Match, Move } from '../types';
+import { api } from '../services/api';
+import { Trophy, Swords, Flame, CheckCircle, XCircle, MinusCircle, Percent, Calendar, UserCheck, ShieldCheck, History, RefreshCw, Coins } from 'lucide-react';
 
 interface ProfilePageProps {
   user: User | null;
   onNavigate?: (page: ActivePage) => void;
 }
 
+const MOVE_EMOJI: Record<Move, { emoji: string; title: string }> = {
+  rock: { emoji: '✊', title: 'BÚA' },
+  paper: { emoji: '✋', title: 'BAO' },
+  scissors: { emoji: '✌️', title: 'KÉO' },
+};
+
 export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onNavigate }) => {
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [loadingMatches, setLoadingMatches] = useState<boolean>(true);
+
+  const fetchHistory = async () => {
+    setLoadingMatches(true);
+    try {
+      const res = await api.getMatches(20);
+      setMatches(res || []);
+    } catch (err) {
+      console.error('Không thể tải lịch sử trận đấu:', err);
+    } finally {
+      setLoadingMatches(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchHistory();
+  }, []);
+
   if (!user) return null;
 
   const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Người chơi';
@@ -19,9 +45,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onNavigate }) =>
   return (
     <div className="flex flex-col min-h-screen px-4 py-6 max-w-md mx-auto pb-24 space-y-4">
       {/* Title Header */}
-      <div className="flex items-center gap-2">
-        <UserCheck className="w-7 h-7 text-amber-400" />
-        <h1 className="text-2xl font-black text-white tracking-wide">HỒ SƠ CỦA TÔI</h1>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <UserCheck className="w-7 h-7 text-amber-400" />
+          <h1 className="text-2xl font-black text-white tracking-wide">HỒ SƠ CỦA TÔI</h1>
+        </div>
       </div>
 
       {/* Main Profile Avatar Card */}
@@ -108,10 +136,120 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onNavigate }) =>
             <Flame className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-[11px] font-bold text-slate-400 uppercase">Chuỗi thắng Kỷ lục</div>
+            <div className="text-[11px] font-bold text-slate-400 uppercase">Chuỗi thắng</div>
             <div className="text-lg font-black text-amber-400">{user.best_streak} trận</div>
           </div>
         </div>
+      </div>
+
+      {/* MATCH HISTORY SECTION */}
+      <div className="space-y-3 pt-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <History className="w-5 h-5 text-amber-400" />
+            <h2 className="text-base font-black text-white uppercase tracking-wider">
+              LỊCH SỬ VÁN CHƠI ({matches.length})
+            </h2>
+          </div>
+
+          <button
+            onClick={fetchHistory}
+            className="p-1.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 active:scale-95 transition-transform"
+            title="Làm mới lịch sử"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loadingMatches ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+
+        {loadingMatches ? (
+          <div className="card-glass p-6 text-center text-xs text-slate-400 font-semibold">
+            Đang tải lịch sử ván chơi...
+          </div>
+        ) : matches.length === 0 ? (
+          <div className="card-glass p-6 text-center text-xs font-semibold text-slate-400">
+            Bạn chưa thực hiện ván đấu nào. Hãy vào game để bắt đầu thách đấu!
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {matches.map((m) => {
+              const isWin = m.result === 'win';
+              const isLose = m.result === 'lose';
+              const playerMoveInfo = MOVE_EMOJI[m.player_move] || { emoji: '❓', title: 'NƯỚC ĐI' };
+              const opponentMoveInfo = MOVE_EMOJI[m.opponent_move] || { emoji: '❓', title: 'NƯỚC ĐI' };
+              const timeStr = new Date(m.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date(m.created_at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+
+              return (
+                <div
+                  key={m.id}
+                  className={`card-glass p-3.5 border-slate-800 space-y-2 transition-all ${
+                    isWin
+                      ? 'border-l-4 border-l-emerald-500 bg-emerald-950/10'
+                      : isLose
+                      ? 'border-l-4 border-l-red-500 bg-red-950/10'
+                      : 'border-l-4 border-l-blue-500 bg-blue-950/10'
+                  }`}
+                >
+                  {/* Top Bar: Match Type & Time */}
+                  <div className="flex items-center justify-between text-[11px] font-bold">
+                    <span className="text-amber-400 font-extrabold flex items-center gap-1">
+                      {m.opponent_type === 'pvp' ? '⚔️ Đấu Phòng PvP' : '🤖 Đấu Bot AI'}
+                    </span>
+                    <span className="text-slate-400">{timeStr}</span>
+                  </div>
+
+                  {/* Move Versus Row */}
+                  <div className="grid grid-cols-2 gap-2 items-center text-center bg-slate-950/60 p-2 rounded-xl border border-slate-800/80">
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-xs font-bold text-slate-400">Bạn:</span>
+                      <span className="text-xl">{playerMoveInfo.emoji}</span>
+                      <span className="text-xs font-black text-amber-300">{playerMoveInfo.title}</span>
+                    </div>
+
+                    <div className="flex items-center justify-center gap-2 border-l border-slate-800">
+                      <span className="text-xs font-bold text-slate-400">Đối thủ:</span>
+                      <span className="text-xl">{opponentMoveInfo.emoji}</span>
+                      <span className="text-xs font-black text-indigo-300">{opponentMoveInfo.title}</span>
+                    </div>
+                  </div>
+
+                  {/* Bottom Stats: Outcome, Rating & Coins */}
+                  <div className="flex items-center justify-between pt-1 text-xs">
+                    <div className="flex items-center gap-2 font-black">
+                      {isWin && (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px]">
+                          🎉 THẮNG
+                        </span>
+                      )}
+                      {isLose && (
+                        <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/40 text-[10px]">
+                          😢 THUA
+                        </span>
+                      )}
+                      {!isWin && !isLose && (
+                        <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/40 text-[10px]">
+                          🤝 HÒA
+                        </span>
+                      )}
+
+                      <span className={m.rating_change > 0 ? 'text-emerald-400' : m.rating_change < 0 ? 'text-red-400' : 'text-slate-400'}>
+                        {m.rating_change > 0 ? `+${m.rating_change}` : m.rating_change} điểm
+                      </span>
+                    </div>
+
+                    {m.coins_change !== undefined && (
+                      <div className="font-extrabold text-[11px] flex items-center gap-1">
+                        <Coins className="w-3 h-3 text-amber-400" />
+                        <span className={m.coins_change > 0 ? 'text-emerald-400' : m.coins_change < 0 ? 'text-red-400' : 'text-slate-400'}>
+                          {m.coins_change > 0 ? `+${m.coins_change.toLocaleString()} Xu` : m.coins_change < 0 ? `${m.coins_change.toLocaleString()} Xu` : '0 Xu'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Account Info Footer */}
