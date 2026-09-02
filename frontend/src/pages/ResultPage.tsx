@@ -2,6 +2,7 @@ import React from 'react';
 import { Match, Move } from '../types';
 import { Confetti } from '../components/Confetti';
 import { RotateCcw, Home, Trophy } from 'lucide-react';
+import { playWinSound, playLoseSound, playDrawSound } from '../services/sound';
 
 interface ResultPageProps {
   match: Match | null;
@@ -34,9 +35,19 @@ export const ResultPage: React.FC<ResultPageProps> = ({ match, onPlayAgain, onGo
     );
   }
 
-  const isWin = match.result === 'win';
-  const isLose = match.result === 'lose';
-  const isDraw = match.result === 'draw';
+  const isWin = match?.result === 'win';
+  const isLose = match?.result === 'lose';
+  const isDraw = match?.result === 'draw';
+
+  React.useEffect(() => {
+    if (isWin) {
+      playWinSound();
+    } else if (isLose) {
+      playLoseSound();
+    } else if (isDraw) {
+      playDrawSound();
+    }
+  }, [match?.id, isWin, isLose, isDraw]);
 
   const playerMoveInfo = MOVE_EMOJI[match.player_move];
   const opponentMoveInfo = MOVE_EMOJI[match.opponent_move];

@@ -2,6 +2,8 @@ import React from 'react';
 import { ActivePage } from '../types';
 import { Trophy, User, Gift, Users, Home, Wallet } from 'lucide-react';
 
+import { playClickSound } from '../services/sound';
+
 interface NavbarProps {
   activePage: ActivePage;
   onNavigate: (page: ActivePage) => void;
@@ -22,10 +24,15 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate }) => {
       <nav className="card-glass border-slate-700/90 py-2 px-1 flex items-center justify-around shadow-2xl bg-slate-900/95 backdrop-blur-xl">
         {navItems.map((item) => {
           const isActive = activePage === item.page;
+          const handleTabClick = () => {
+            playClickSound();
+            onNavigate(item.page);
+          };
+
           return (
             <button
               key={item.page}
-              onClick={() => onNavigate(item.page)}
+              onClick={handleTabClick}
               className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all duration-200 ${
                 isActive
                   ? 'text-amber-400 bg-amber-500/10 font-bold scale-105'

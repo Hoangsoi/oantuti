@@ -1,6 +1,7 @@
 import React from 'react';
 import { User } from '../types';
-import { Trophy, Plus, ShieldCheck } from 'lucide-react';
+import { Trophy, Plus, ShieldCheck, Volume2, VolumeX } from 'lucide-react';
+import { isSoundEnabled, toggleSound } from '../services/sound';
 
 interface HeaderProps {
   user: User | null;
@@ -12,7 +13,15 @@ interface HeaderProps {
 const ADMIN_TELEGRAM_ID = import.meta.env.VITE_ADMIN_ID || '8780377211';
 
 export const Header: React.FC<HeaderProps> = ({ user, onProfileClick, onTopupClick, onAdminClick }) => {
+  const [soundOn, setSoundOn] = React.useState<boolean>(isSoundEnabled());
+
   if (!user) return null;
+
+  const handleToggleSound = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = toggleSound();
+    setSoundOn(updated);
+  };
 
   const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Người chơi';
   const avatarUrl = user.photo_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.telegram_id}`;
@@ -64,18 +73,32 @@ export const Header: React.FC<HeaderProps> = ({ user, onProfileClick, onTopupCli
             </button>
           )}
 
-          {/* Coin Balance Badge with Topup + Button */}
-          <div className="flex items-center gap-1 bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 rounded-xl text-amber-300 font-extrabold text-xs">
-            <span>🪙 {user.coins ? user.coins.toLocaleString() : 0} Xu</span>
-            {onTopupClick && (
-              <button
-                onClick={onTopupClick}
-                className="p-0.5 rounded-md bg-amber-500 text-slate-950 hover:bg-amber-400 active:scale-95 transition-transform"
-                title="Nạp Xu"
-              >
-                <Plus className="w-3 h-3" />
-              </button>
-            )}
+          {/* Coin Balance Badge with Topup + Button & Sound Toggle */}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={handleToggleSound}
+              className={`p-1 rounded-xl border transition-all active:scale-95 ${
+                soundOn
+                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-400'
+                  : 'bg-slate-800 border-slate-700 text-slate-500'
+              }`}
+              title={soundOn ? 'Tắt âm thanh' : 'Bật âm thanh'}
+            >
+              {soundOn ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+            </button>
+
+            <div className="flex items-center gap-1 bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 rounded-xl text-amber-300 font-extrabold text-xs">
+              <span>🪙 {user.coins ? user.coins.toLocaleString() : 0} Xu</span>
+              {onTopupClick && (
+                <button
+                  onClick={onTopupClick}
+                  className="p-0.5 rounded-md bg-amber-500 text-slate-950 hover:bg-amber-400 active:scale-95 transition-transform"
+                  title="Nạp Xu"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 px-2.5 py-0.5 rounded-xl text-amber-400 font-extrabold text-xs">

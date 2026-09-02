@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Room, Move, User } from '../types';
 import { api } from '../services/api';
 import { shareTelegramLink, triggerHapticImpact } from '../services/telegram';
+import { playTickSound } from '../services/sound';
 import { MoveButton } from '../components/MoveButton';
 import { Users, Plus, KeyRound, Copy, Share2, Check, Lock, Coins } from 'lucide-react';
 
@@ -155,6 +156,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
 
     const timer = setTimeout(() => {
       triggerHapticImpact('light');
+      playTickSound();
       setRevealTimeLeft((prev) => prev - 1);
     }, 1000);
 

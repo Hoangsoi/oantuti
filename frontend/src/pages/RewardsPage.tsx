@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { DailyRewardTask, User } from '../types';
 import { api } from '../services/api';
 import { triggerHapticNotification, triggerHapticImpact } from '../services/telegram';
+import { playCoinSound } from '../services/sound';
 import { Gift, CheckCircle2, Trophy, Sparkles, RefreshCw } from 'lucide-react';
 
 interface RewardsPageProps {
@@ -38,6 +39,7 @@ export const RewardsPage: React.FC<RewardsPageProps> = ({ onRewardClaimed }) => 
     triggerHapticImpact('medium');
     try {
       const res = await api.claimReward(task.id);
+      playCoinSound();
       triggerHapticNotification('success');
       setTasks((prev) =>
         prev.map((t) => (t.id === task.id ? { ...t, isClaimed: true } : t))

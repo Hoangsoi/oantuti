@@ -1,6 +1,8 @@
 import React from 'react';
 import { Move } from '../types';
 
+import { playSelectSound } from '../services/sound';
+
 interface MoveButtonProps {
   move: Move;
   onClick: (move: Move) => void;
@@ -35,9 +37,14 @@ const MOVE_CONFIG: Record<Move, { emoji: string; title: string; color: string; h
 export const MoveButton: React.FC<MoveButtonProps> = ({ move, onClick, disabled = false, selected = false }) => {
   const config = MOVE_CONFIG[move];
 
+  const handleClick = () => {
+    playSelectSound();
+    onClick(move);
+  };
+
   return (
     <button
-      onClick={() => onClick(move)}
+      onClick={handleClick}
       disabled={disabled}
       className={`w-full py-4 px-4 rounded-2xl border-2 ${config.borderColor} bg-gradient-to-r ${
         selected ? 'ring-4 ring-amber-400 scale-105' : ''
