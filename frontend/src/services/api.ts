@@ -41,9 +41,9 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
   const url = `${API_BASE_URL}${endpoint}`;
 
-  // 15 seconds timeout
+  // 30 seconds timeout to accommodate Render free tier cold starts
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
 
   try {
     const response = await fetch(url, {

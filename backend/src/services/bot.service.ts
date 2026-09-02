@@ -4,8 +4,8 @@ import { config } from '../config';
 let isPolling = false;
 let offset = 0;
 
-function makeTelegramRequest(method: string, payload: any): Promise<any> {
-  return new Promise((resolve, reject) => {
+function makeTelegramRequest(method: string, payload: any, requestTimeoutMs: number = 8000): Promise<any> {
+  return new Promise((resolve) => {
     const postData = JSON.stringify(payload);
     const options = {
       hostname: 'api.telegram.org',
@@ -15,6 +15,7 @@ function makeTelegramRequest(method: string, payload: any): Promise<any> {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(postData),
       },
+      timeout: requestTimeoutMs,
     };
 
     const req = https.request(options, (res) => {
@@ -30,7 +31,12 @@ function makeTelegramRequest(method: string, payload: any): Promise<any> {
       });
     });
 
-    req.on('error', (err) => resolve(null));
+    req.on('timeout', () => {
+      req.destroy();
+      resolve(null);
+    });
+
+    req.on('error', () => resolve(null));
     req.write(postData);
     req.end();
   });
@@ -86,14 +92,21 @@ async function sendWelcomeMessage(chatId: number, firstName: string, startParam?
 async function pollUpdates() {
   if (!isPolling) return;
 
+  let nextPollDelay = 2000;
+
   try {
-    const res = await makeTelegramRequest('getUpdates', {
-      offset: offset,
-      timeout: 20,
-      allowed_updates: ['message'],
-    });
+    const res = await makeTelegramRequest(
+      'getUpdates',
+      {
+        offset: offset,
+        timeout: 2, // Fast non-blocking 2s poll
+        allowed_updates: ['message'],
+      },
+      5000
+    );
 
     if (res && res.ok && Array.isArray(res.result)) {
+      nextPollDelay = 1000;
       for (const update of res.result) {
         offset = update.update_id + 1;
 
@@ -114,13 +127,18 @@ async function pollUpdates() {
           await sendWelcomeMessage(chatId, firstName, startParam);
         }
       }
+    } else if (res && !res.ok) {
+      // If 409 Conflict or other error, pause polling to avoid CPU/network socket saturation
+      console.warn('[Telegram Bot Polling Warning]', res.description || 'Conflict or error');
+      nextPollDelay = 5000;
     }
   } catch (err) {
     console.error('[Telegram Bot Polling Error]:', err);
+    nextPollDelay = 5000;
   }
 
   if (isPolling) {
-    setTimeout(pollUpdates, 1000);
+    setTimeout(pollUpdates, nextPollDelay);
   }
 }
 
@@ -135,7 +153,7 @@ export function startTelegramBot() {
 
   console.log('🤖 [Telegram Bot] Đang khởi chạy Telegram Bot Polling...');
   registerBotCommands();
-  pollUpdates();
+  setTimeout(pollUpdates, 3000);
 }
 
 export function stopTelegramBot() {
