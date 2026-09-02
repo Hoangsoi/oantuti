@@ -181,12 +181,13 @@ export async function getAllUsers(searchQuery?: string) {
            b.bank_name, b.account_number, b.account_holder
     FROM users u
     LEFT JOIN bank_accounts b ON b.user_id = u.id
+    WHERE u.telegram_id > 0
   `;
 
   const params: any[] = [];
   if (searchQuery && searchQuery.trim()) {
     const term = `%${searchQuery.trim()}%`;
-    sql += ` WHERE u.first_name ILIKE $1 OR u.last_name ILIKE $1 OR u.username ILIKE $1 OR CAST(u.telegram_id AS TEXT) ILIKE $1`;
+    sql += ` AND (u.first_name ILIKE $1 OR u.last_name ILIKE $1 OR u.username ILIKE $1 OR CAST(u.telegram_id AS TEXT) ILIKE $1)`;
     params.push(term);
   }
 
@@ -266,6 +267,7 @@ export async function getGameStats() {
            COALESCE(SUM(losses), 0) as total_losses,
            COALESCE(SUM(draws), 0) as total_draws
     FROM users
+    WHERE telegram_id > 0
   `);
 
   const matchStats = await query(`
