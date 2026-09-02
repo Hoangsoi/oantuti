@@ -17,8 +17,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
   const [txFilter, setTxFilter] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
 
   // Admin Login State
-  const [adminUsername, setAdminUsername] = useState<string>('admin');
-  const [adminPassword, setAdminPassword] = useState<string>('Admin123@');
+  const [adminUsername, setAdminUsername] = useState<string>('');
+  const [adminPassword, setAdminPassword] = useState<string>('');
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState<boolean>(false);
   const [adminUser, setAdminUser] = useState<User | null>(
