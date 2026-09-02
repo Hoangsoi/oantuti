@@ -670,7 +670,22 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
                   {withdrawMethod === 'bank' ? (
                     <span>Số tiền thực nhận: <strong className="text-amber-400 font-black">{Number(withdrawCoins || 0).toLocaleString()} VNĐ</strong></span>
                   ) : (
-                    <span>Số USDT thực nhận: <strong className="text-emerald-400 font-black">{(Number(withdrawCoins || 0) / 25000).toFixed(2)} USDT</strong></span>
+                    <div className="space-y-1 bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-[11px] text-left">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Số USDT quy đổi:</span>
+                        <span className="font-bold text-white font-mono">{(Number(withdrawCoins || 0) / 25000).toFixed(2)} USDT</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Phí mạng rút TRC20:</span>
+                        <span className="font-bold text-red-400 font-mono">-2.00 USDT</span>
+                      </div>
+                      <div className="flex justify-between border-t border-slate-800 pt-1 font-bold">
+                        <span className="text-emerald-400">Số USDT thực nhận:</span>
+                        <span className="font-black text-emerald-400 font-mono text-xs">
+                          {Math.max(0, (Number(withdrawCoins || 0) / 25000) - 2).toFixed(2)} USDT
+                        </span>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>

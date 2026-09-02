@@ -141,7 +141,12 @@ export async function createWithdrawRequest(
     const adminPayment = getAdminPaymentInfo();
     let fiatOrUsdtAmount = coinsAmount;
     if (method === 'usdt') {
-      fiatOrUsdtAmount = coinsAmount / adminPayment.usdtRate;
+      const grossUsdt = coinsAmount / adminPayment.usdtRate;
+      const feeUsdt = 2; // Fixed 2 USDT network/withdrawal fee
+      if (grossUsdt <= feeUsdt) {
+        throw new Error('Số Xu rút quá ít không đủ chi trả phí mạng rút 2 USDT. Vui lòng rút số Xu lớn hơn!');
+      }
+      fiatOrUsdtAmount = grossUsdt - feeUsdt;
     }
 
     // Deduct coins from user balance
