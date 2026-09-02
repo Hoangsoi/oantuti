@@ -13,6 +13,7 @@ export interface LeaderboardEntry {
   wins: number;
   losses: number;
   draws: number;
+  vip_level?: number;
 }
 
 const REALISTIC_MASTERS = [
@@ -64,7 +65,7 @@ async function ensureRealisticLeaderboard(): Promise<void> {
   }
 }
 
-export async function getLeaderboard(currentUserId: number, period: 'all' | 'today' | 'week' = 'all') {
+export async function getLeaderboard(currentUserId: number, period: 'all' | 'today' | 'week' | 'month' = 'all') {
   await ensureRealisticLeaderboard();
 
   // EXCLUDE ADMIN ACCOUNTS FROM LEADERBOARD
@@ -75,7 +76,7 @@ export async function getLeaderboard(currentUserId: number, period: 'all' | 'tod
   `;
 
   let topUsersQuery = `
-    SELECT id, telegram_id, first_name, last_name, username, photo_url, rating, wins, losses, draws
+    SELECT id, telegram_id, first_name, last_name, username, photo_url, rating, wins, losses, draws, vip_level
     FROM users
     ${ADMIN_FILTER}
     ORDER BY rating DESC, wins DESC
@@ -85,16 +86,16 @@ export async function getLeaderboard(currentUserId: number, period: 'all' | 'tod
   if (period === 'today') {
     topUsersQuery = `
       SELECT u.id, u.telegram_id, u.first_name, u.last_name, u.username, u.photo_url, u.rating,
-             u.wins, u.losses, u.draws
+             u.wins, u.losses, u.draws, u.vip_level
       FROM users u
       ${ADMIN_FILTER}
       ORDER BY u.wins DESC, u.rating DESC
       LIMIT 100
     `;
-  } else if (period === 'week') {
+  } else if (period === 'week' || period === 'month') {
     topUsersQuery = `
       SELECT u.id, u.telegram_id, u.first_name, u.last_name, u.username, u.photo_url, u.rating,
-             u.wins, u.losses, u.draws
+             u.wins, u.losses, u.draws, u.vip_level
       FROM users u
       ${ADMIN_FILTER}
       ORDER BY u.rating DESC, u.wins DESC
@@ -116,6 +117,7 @@ export async function getLeaderboard(currentUserId: number, period: 'all' | 'tod
     wins: row.wins,
     losses: row.losses,
     draws: row.draws,
+    vip_level: Number(row.vip_level || 0),
   }));
 
   // Find user's own rank if not in top 100
@@ -145,6 +147,7 @@ export async function getLeaderboard(currentUserId: number, period: 'all' | 'tod
         wins: u.wins,
         losses: u.losses,
         draws: u.draws,
+        vip_level: Number(u.vip_level || 0),
       };
     }
   }

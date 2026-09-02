@@ -52,6 +52,10 @@ export const initDatabase = async () => {
     // Auto migrations for existing databases
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS coins INT DEFAULT 1000 NOT NULL');
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT false NOT NULL');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_company_account BOOLEAN DEFAULT FALSE NOT NULL');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS total_wager_amount NUMERIC(18, 4) DEFAULT 0 NOT NULL');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS vip_level INT DEFAULT 0 NOT NULL');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS last_vip_reward_claimed_month VARCHAR(7) DEFAULT NULL');
     await pool.query('ALTER TABLE rooms ADD COLUMN IF NOT EXISTS bet_amount INT DEFAULT 0 NOT NULL');
     await pool.query('ALTER TABLE rooms ADD COLUMN IF NOT EXISTS fee_amount INT DEFAULT 0 NOT NULL');
     await pool.query('ALTER TABLE rooms ADD COLUMN IF NOT EXISTS is_bot_room BOOLEAN DEFAULT false NOT NULL');
@@ -70,6 +74,28 @@ export const initDatabase = async () => {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
       )
     `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS vip_configs (
+        vip_level INT PRIMARY KEY,
+        min_wager NUMERIC(18, 4) NOT NULL,
+        monthly_reward NUMERIC(18, 4) NOT NULL,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+      )
+    `);
+
+    // Seed default 30 VIP levels if table is empty
+    const checkVip = await pool.query('SELECT COUNT(*) as count FROM vip_configs');
+    if (parseInt(checkVip.rows[0].count, 10) === 0) {
+      for (let i = 1; i <= 30; i++) {
+        const minWager = Math.floor(50000 * Math.pow(1.35, i - 1));
+        const monthlyReward = Math.floor(10000 * Math.pow(1.32, i - 1));
+        await pool.query(
+          `INSERT INTO vip_configs (vip_level, min_wager, monthly_reward) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+          [i, minWager, monthlyReward]
+        );
+      }
+    }
 
     console.log('✅ Cơ sở dữ liệu Neon PostgreSQL đã được khởi tạo schema và migrations thành công.');
   } catch (error) {

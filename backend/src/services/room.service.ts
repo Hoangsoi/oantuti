@@ -1,6 +1,7 @@
 import { query, pool } from '../database';
 import { Room, Move, User } from '../types';
 import { determineResult } from './game.service';
+import { recordWagerAndCheckVipUpgrade } from './vip.service';
 
 const VIRTUAL_BOT_PROFILES = [
   { name: 'Minh Quân', tgId: -101, seed: 'minh_quan_99' },
@@ -438,11 +439,14 @@ export async function playRoomMove(userId: number, roomCode: string, move: Move)
         [room.guest_id, newGuestMove, newHostMove, guestOutcome, guestUser.rating, guestRatingChange, Math.max(0, guestUser.rating + guestRatingChange)]
       );
 
-      // Distribute 5-Level Referral Commissions (2.0% total: F1=1.0%, F2=0.4%, F3=0.3%, F4=0.2%, F5=0.1%)
+      // Distribute 5-Level Referral Commissions & Track VIP Wager Progression
       if (betAmount > 0) {
         await processReferralCommissions(client, room.host_id, betAmount, room.id);
+        await recordWagerAndCheckVipUpgrade(client, room.host_id, betAmount);
+
         if (room.guest_id && !room.is_bot_room) {
           await processReferralCommissions(client, room.guest_id, betAmount, room.id);
+          await recordWagerAndCheckVipUpgrade(client, room.guest_id, betAmount);
         }
       }
     }

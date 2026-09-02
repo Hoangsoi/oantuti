@@ -17,7 +17,17 @@ CREATE TABLE IF NOT EXISTS users (
     best_streak INT DEFAULT 0 NOT NULL,
     is_blocked BOOLEAN DEFAULT FALSE NOT NULL,
     is_company_account BOOLEAN DEFAULT FALSE NOT NULL,
+    total_wager_amount NUMERIC(18, 4) DEFAULT 0 NOT NULL,
+    vip_level INT DEFAULT 0 NOT NULL,
+    last_vip_reward_claimed_month VARCHAR(7),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS vip_configs (
+    vip_level INT PRIMARY KEY,
+    min_wager NUMERIC(18, 4) NOT NULL,
+    monthly_reward NUMERIC(18, 4) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 

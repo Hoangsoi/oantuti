@@ -17,11 +17,20 @@ export interface User {
   current_streak: number;
   best_streak: number;
   referral_code: string;
-  referred_by: number | null;
   is_blocked?: boolean;
   is_company_account?: boolean;
+  total_wager_amount?: number;
+  vip_level?: number;
+  last_vip_reward_claimed_month?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface VipConfig {
+  vip_level: number;
+  min_wager: number;
+  monthly_reward: number;
+  updated_at?: string;
 }
 
 export interface Match {
@@ -126,6 +135,7 @@ export interface LeaderboardEntry {
   wins: number;
   losses: number;
   draws: number;
+  vip_level?: number;
 }
 
 export interface LeaderboardData {

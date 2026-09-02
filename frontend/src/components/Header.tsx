@@ -45,9 +45,13 @@ export const Header: React.FC<HeaderProps> = ({ user, onProfileClick, onTopupCli
               }}
             />
             <div className={`absolute -bottom-1 -right-1 rounded-full p-0.5 font-black text-[9px] px-1 shadow ${
-              isAdmin ? 'bg-purple-600 text-white' : 'bg-amber-500 text-slate-950'
+              isAdmin
+                ? 'bg-purple-600 text-white'
+                : user.vip_level && user.vip_level > 0
+                ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 border border-amber-300'
+                : 'bg-amber-500 text-slate-950'
             }`}>
-              {isAdmin ? 'ADMIN' : 'PRO'}
+              {isAdmin ? 'ADMIN' : user.vip_level && user.vip_level > 0 ? `VIP ${user.vip_level}` : 'PRO'}
             </div>
           </div>
           <div>

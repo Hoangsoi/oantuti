@@ -15,12 +15,19 @@ export const RewardsPage: React.FC<RewardsPageProps> = ({ onRewardClaimed }) => 
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [vipInfo, setVipInfo] = useState<any>(null);
+  const [claimingVip, setClaimingVip] = useState<boolean>(false);
+
   const fetchRewards = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.getRewards();
+      const [res, vipData] = await Promise.all([
+        api.getRewards(),
+        api.getVipInfo().catch(() => null),
+      ]);
       setTasks(res);
+      setVipInfo(vipData);
     } catch (err: any) {
       setError(err.message || 'Không thể tải danh sách phần thưởng');
     } finally {
@@ -31,6 +38,27 @@ export const RewardsPage: React.FC<RewardsPageProps> = ({ onRewardClaimed }) => 
   useEffect(() => {
     fetchRewards();
   }, []);
+
+  const handleClaimVipSalary = async () => {
+    if (claimingVip || !vipInfo) return;
+    setClaimingVip(true);
+    triggerHapticImpact('medium');
+    try {
+      const res = await api.claimVipReward();
+      playCoinSound();
+      triggerHapticNotification('success');
+      alert(`🎉 Nhận thành công +${res.rewardCoins.toLocaleString()} Xu Lương VIP tháng ${res.claimedMonth}!`);
+      fetchRewards();
+      if (res.newCoins !== undefined) {
+        onRewardClaimed({ coins: res.newCoins } as User);
+      }
+    } catch (err: any) {
+      triggerHapticNotification('error');
+      alert(err.message || 'Không thể nhận thưởng VIP hàng tháng');
+    } finally {
+      setClaimingVip(false);
+    }
+  };
 
   const handleClaim = async (task: DailyRewardTask) => {
     if (task.isClaimed || !task.isCompleted || claimingId) return;
@@ -81,6 +109,85 @@ export const RewardsPage: React.FC<RewardsPageProps> = ({ onRewardClaimed }) => 
           </div>
         </div>
       </div>
+
+      {/* VIP Level & Monthly Salary Card */}
+      {vipInfo && (
+        <div className="card-glass p-4 border-amber-500/40 bg-gradient-to-br from-slate-900 via-amber-950/20 to-slate-900 space-y-3">
+          <div className="flex items-center justify-between border-b border-amber-500/20 pb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">👑</span>
+              <div>
+                <h3 className="text-xs font-black text-amber-400 uppercase tracking-wider">
+                  QUYỀN LỢI & LƯƠNG VIP (VIP 1 - VIP 30)
+                </h3>
+                <p className="text-[10px] text-slate-300 font-semibold">
+                  Cấp VIP hiện tại: <span className="text-amber-400 font-black">VIP {vipInfo.currentVipLevel}</span>
+                </p>
+              </div>
+            </div>
+            {vipInfo.currentVipLevel > 0 && (
+              <span className="px-2.5 py-1 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 font-black text-xs">
+                👑 VIP {vipInfo.currentVipLevel}
+              </span>
+            )}
+          </div>
+
+          {/* Wager Progress Bar */}
+          <div className="space-y-1">
+            <div className="flex justify-between text-[10px] font-bold text-slate-300">
+              <span>Tổng cược: {vipInfo.totalWagerAmount.toLocaleString()} Xu</span>
+              <span>
+                {vipInfo.nextVipLevel
+                  ? `Mục tiêu VIP ${vipInfo.nextVipLevel}: ${vipInfo.nextMinWager.toLocaleString()} Xu`
+                  : 'Đã đạt VIP tối đa!'}
+              </span>
+            </div>
+            {vipInfo.nextVipLevel && (
+              <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800">
+                <div
+                  className="bg-gradient-to-r from-amber-500 to-amber-300 h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      Math.max(0, (vipInfo.totalWagerAmount / vipInfo.nextMinWager) * 100)
+                    )}%`,
+                  }}
+                ></div>
+              </div>
+            )}
+          </div>
+
+          {/* Monthly Salary Claim Section */}
+          <div className="pt-2 flex items-center justify-between bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
+            <div>
+              <div className="text-[10px] font-bold text-slate-400">LƯƠNG VIP HÀNG THÁNG</div>
+              <div className="text-sm font-black text-amber-400">
+                +{vipInfo.currentMonthlyReward.toLocaleString()} Xu / tháng
+              </div>
+            </div>
+
+            <button
+              onClick={handleClaimVipSalary}
+              disabled={claimingVip || vipInfo.isClaimedThisMonth || vipInfo.currentVipLevel === 0}
+              className={`px-3.5 py-2 text-xs font-black rounded-xl shadow-md transition-all active:scale-95 ${
+                vipInfo.isClaimedThisMonth
+                  ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
+                  : vipInfo.currentVipLevel === 0
+                  ? 'bg-slate-800 text-slate-400 border border-slate-700 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 hover:brightness-110 shadow-amber-500/20'
+              }`}
+            >
+              {claimingVip
+                ? 'ĐANG NHẬN...'
+                : vipInfo.isClaimedThisMonth
+                ? '✅ ĐÃ NHẬN THÁNG NÀY'
+                : vipInfo.currentVipLevel === 0
+                ? 'CHƯA ĐẠT VIP 1'
+                : '🎁 NHẬN LƯƠNG VIP'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-bold rounded-xl text-center">

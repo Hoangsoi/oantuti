@@ -9,6 +9,7 @@ import rewardsRoutes from './rewards';
 import roomRoutes from './room';
 import walletRoutes from './wallet';
 import adminRoutes from './admin';
+import vipRoutes from './vip';
 
 const router = Router();
 
@@ -22,5 +23,6 @@ router.use('/rewards', rewardsRoutes);
 router.use('/room', roomRoutes);
 router.use('/wallet', walletRoutes);
 router.use('/admin', adminRoutes);
+router.use('/vip', vipRoutes);
 
 export default router;

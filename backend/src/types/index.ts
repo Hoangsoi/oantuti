@@ -29,8 +29,18 @@ export interface User {
   referred_by: number | null;
   is_blocked?: boolean;
   is_company_account?: boolean;
+  total_wager_amount?: number;
+  vip_level?: number;
+  last_vip_reward_claimed_month?: string | null;
   created_at: Date;
   updated_at: Date;
+}
+
+export interface VipConfig {
+  vip_level: number;
+  min_wager: number;
+  monthly_reward: number;
+  updated_at?: Date;
 }
 
 export interface Match {

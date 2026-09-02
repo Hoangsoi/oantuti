@@ -4,12 +4,12 @@ import { api } from '../services/api';
 import { Trophy, RefreshCw, Crown } from 'lucide-react';
 
 export const LeaderboardPage: React.FC = () => {
-  const [period, setPeriod] = useState<'all' | 'today' | 'week'>('all');
+  const [period, setPeriod] = useState<'all' | 'today' | 'week' | 'month'>('all');
   const [data, setData] = useState<LeaderboardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchLeaderboard = async (selectedPeriod: 'all' | 'today' | 'week') => {
+  const fetchLeaderboard = async (selectedPeriod: 'all' | 'today' | 'week' | 'month') => {
     setLoading(true);
     setError(null);
     try {
@@ -48,11 +48,33 @@ export const LeaderboardPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Tabs Filter */}
-      <div className="grid grid-cols-3 gap-2 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800">
+      {/* Leaderboard Rewards Event Banner */}
+      <div className="card-glass p-3.5 border-amber-500/40 bg-gradient-to-r from-amber-950/40 via-purple-950/40 to-slate-900 space-y-2">
+        <div className="flex items-center gap-2 text-amber-400 text-xs font-black uppercase tracking-wider">
+          <Crown className="w-4 h-4 text-amber-300" />
+          <span>🎁 SỰ KIỆN DẪN ĐẦU BẢNG XẾP HẠNG</span>
+        </div>
+        <div className="grid grid-cols-3 gap-1.5 text-center pt-1">
+          <div className="bg-slate-900/90 border border-amber-500/30 p-2 rounded-xl">
+            <div className="text-[10px] font-bold text-slate-400">TOP 1 NGÀY</div>
+            <div className="text-xs font-black text-amber-400 mt-0.5">500.000 Xu</div>
+          </div>
+          <div className="bg-slate-900/90 border border-purple-500/30 p-2 rounded-xl">
+            <div className="text-[10px] font-bold text-slate-400">TOP 1 TUẦN</div>
+            <div className="text-xs font-black text-purple-400 mt-0.5">1.000.000 Xu</div>
+          </div>
+          <div className="bg-slate-900/90 border border-emerald-500/30 p-2 rounded-xl">
+            <div className="text-[10px] font-bold text-slate-400">TOP 1 THÁNG</div>
+            <div className="text-xs font-black text-emerald-400 mt-0.5">3.000.000 Xu</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs Filter (All, Today, Week, Month) */}
+      <div className="grid grid-cols-4 gap-1.5 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800">
         <button
           onClick={() => setPeriod('all')}
-          className={`py-2 text-xs font-extrabold rounded-xl transition-all ${
+          className={`py-2 text-[11px] font-extrabold rounded-xl transition-all ${
             period === 'all'
               ? 'bg-amber-500 text-slate-950 shadow-md scale-105'
               : 'text-slate-400 hover:text-white'
@@ -62,7 +84,7 @@ export const LeaderboardPage: React.FC = () => {
         </button>
         <button
           onClick={() => setPeriod('today')}
-          className={`py-2 text-xs font-extrabold rounded-xl transition-all ${
+          className={`py-2 text-[11px] font-extrabold rounded-xl transition-all ${
             period === 'today'
               ? 'bg-amber-500 text-slate-950 shadow-md scale-105'
               : 'text-slate-400 hover:text-white'
@@ -72,13 +94,23 @@ export const LeaderboardPage: React.FC = () => {
         </button>
         <button
           onClick={() => setPeriod('week')}
-          className={`py-2 text-xs font-extrabold rounded-xl transition-all ${
+          className={`py-2 text-[11px] font-extrabold rounded-xl transition-all ${
             period === 'week'
               ? 'bg-amber-500 text-slate-950 shadow-md scale-105'
               : 'text-slate-400 hover:text-white'
           }`}
         >
           Tuần này
+        </button>
+        <button
+          onClick={() => setPeriod('month')}
+          className={`py-2 text-[11px] font-extrabold rounded-xl transition-all ${
+            period === 'month'
+              ? 'bg-amber-500 text-slate-950 shadow-md scale-105'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          Tháng này
         </button>
       </div>
 

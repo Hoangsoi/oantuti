@@ -133,7 +133,7 @@ export const api = {
     });
   },
 
-  getLeaderboard: async (period: 'all' | 'today' | 'week' = 'all') => {
+  getLeaderboard: async (period: 'all' | 'today' | 'week' | 'month' = 'all') => {
     return request<LeaderboardData>(`/leaderboard?period=${period}`);
   },
 
@@ -300,6 +300,28 @@ export const api = {
   clearAdminData: async () => {
     return request<{ success: boolean; message: string }>('/admin/clear-data', {
       method: 'POST',
+    });
+  },
+
+  // VIP & Monthly Reward APIs
+  getVipInfo: async () => {
+    return request<any>('/vip/info');
+  },
+
+  claimVipReward: async () => {
+    return request<any>('/vip/claim', {
+      method: 'POST',
+    });
+  },
+
+  getAdminVipConfigs: async () => {
+    return request<any>('/admin/vip-configs');
+  },
+
+  updateAdminVipConfigs: async (configs: any[]) => {
+    return request<any>('/admin/vip-configs', {
+      method: 'POST',
+      body: JSON.stringify({ configs }),
     });
   },
 };

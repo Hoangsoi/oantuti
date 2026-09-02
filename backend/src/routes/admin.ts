@@ -47,7 +47,13 @@ router.get('/stats', getGameStatsHandler);
 router.get('/payment-config', getPaymentConfigHandler);
 router.post('/payment-config', updatePaymentConfigHandler);
 
+import { getAdminVipConfigsHandler, updateAdminVipConfigsHandler } from '../controllers/vip.controller';
+
 // Clear All System History Data Endpoint
 router.post('/clear-data', clearAllSystemDataHandler);
+
+// Admin VIP Configuration Endpoints
+router.get('/vip-configs', getAdminVipConfigsHandler);
+router.post('/vip-configs', updateAdminVipConfigsHandler);
 
 export default router;

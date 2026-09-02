@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Transaction, User } from '../types';
 import { api } from '../services/api';
 import { triggerHapticImpact, triggerHapticNotification } from '../services/telegram';
-import { ShieldCheck, Check, X, RefreshCw, Copy, Search, Lock, Unlock, Coins, KeyRound, Trash2, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, Check, X, RefreshCw, Copy, Search, Lock, Unlock, Coins, KeyRound, Trash2, AlertTriangle, Crown } from 'lucide-react';
 
 interface AdminPageProps {
   onBackHome: () => void;
@@ -163,12 +163,48 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
     }
   };
 
+  const [vipConfigs, setVipConfigs] = useState<any[]>([]);
+  const [vipLoading, setVipLoading] = useState<boolean>(false);
+
+  const loadVipConfigs = async () => {
+    setVipLoading(true);
+    try {
+      const data = await api.getAdminVipConfigs();
+      setVipConfigs(data || []);
+    } catch (err) {
+      console.error('Lỗi tải cấu hình VIP:', err);
+    } finally {
+      setVipLoading(false);
+    }
+  };
+
+  const handleSaveVipConfigs = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setActionLoading('save_vip');
+    setStatusMsg(null);
+    triggerHapticImpact('medium');
+
+    try {
+      const res = await api.updateAdminVipConfigs(vipConfigs);
+      triggerHapticNotification('success');
+      setStatusMsg({ type: 'success', text: res.message || 'Đã lưu cấu hình 30 cấp VIP thành công!' });
+    } catch (err: any) {
+      triggerHapticNotification('error');
+      setStatusMsg({ type: 'error', text: err.message || 'Không thể lưu cấu hình VIP' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   useEffect(() => {
     if (isAdminAuthenticated) {
       if (activeTab === 'pending') loadTransactions();
       else if (activeTab === 'users') loadUsers();
       else if (activeTab === 'stats') loadStats();
-      else if (activeTab === 'settings') loadPaymentConfig();
+      else if (activeTab === 'settings') {
+        loadPaymentConfig();
+        loadVipConfigs();
+      }
     }
   }, [activeTab, txFilter, isAdminAuthenticated]);
 
@@ -843,133 +879,205 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
       )}
 
       {/* ------------------------------------------------------------------ */}
-      {/* TAB 4: ADMIN PAYMENT SETTINGS */}
+      {/* TAB 4: ADMIN PAYMENT & VIP SETTINGS */}
       {/* ------------------------------------------------------------------ */}
       {activeTab === 'settings' && (
-        <form onSubmit={handleSavePaymentConfig} className="card-glass p-5 space-y-4 border-slate-700/80">
-          <h3 className="text-sm font-black text-purple-400 text-center uppercase tracking-wider">
-            CẤU HÌNH THANH TOÁN ADMIN (NGÂN HÀNG & VÍ)
-          </h3>
+        <div className="space-y-6">
+          <form onSubmit={handleSavePaymentConfig} className="card-glass p-5 space-y-4 border-slate-700/80">
+            <h3 className="text-sm font-black text-purple-400 text-center uppercase tracking-wider">
+              CẤU HÌNH THANH TOÁN ADMIN (NGÂN HÀNG & VÍ)
+            </h3>
 
-          {configLoading ? (
-            <div className="text-center py-8 text-xs text-slate-400">Đang tải cấu hình Admin...</div>
-          ) : (
-            <div className="space-y-3 text-xs font-bold text-slate-300">
-              <div className="space-y-1">
-                <label className="block">Tên Ngân hàng Admin:</label>
-                <input
-                  type="text"
-                  value={paymentConfig.bankName}
-                  onChange={(e) => setPaymentConfig({ ...paymentConfig, bankName: e.target.value })}
-                  className="bg-slate-900 border border-slate-700 text-white font-bold p-3 rounded-xl w-full focus:outline-none"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block">Số tài khoản Admin:</label>
-                <input
-                  type="text"
-                  value={paymentConfig.accountNumber}
-                  onChange={(e) => setPaymentConfig({ ...paymentConfig, accountNumber: e.target.value })}
-                  className="bg-slate-900 border border-slate-700 text-amber-400 font-black p-3 rounded-xl w-full focus:outline-none"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block">Tên chủ tài khoản Admin:</label>
-                <input
-                  type="text"
-                  value={paymentConfig.accountHolder}
-                  onChange={(e) => setPaymentConfig({ ...paymentConfig, accountHolder: e.target.value.toUpperCase() })}
-                  className="bg-slate-900 border border-slate-700 text-white font-black p-3 rounded-xl w-full uppercase focus:outline-none"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block">Địa chỉ ví USDT (TRC20) Admin:</label>
-                <input
-                  type="text"
-                  value={paymentConfig.usdtAddress}
-                  onChange={(e) => setPaymentConfig({ ...paymentConfig, usdtAddress: e.target.value })}
-                  className="bg-slate-900 border border-slate-700 text-emerald-400 font-mono text-xs font-bold p-3 rounded-xl w-full focus:outline-none"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block">Username Telegram Admin (VD: ottadmin2026):</label>
-                <input
-                  type="text"
-                  value={paymentConfig.adminTelegramUsername}
-                  onChange={(e) => setPaymentConfig({ ...paymentConfig, adminTelegramUsername: e.target.value })}
-                  className="bg-slate-900 border border-slate-700 text-purple-400 font-bold p-3 rounded-xl w-full focus:outline-none"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block">Link Ảnh Mã QR Ngân Hàng (Tùy chọn):</label>
-                <input
-                  type="text"
-                  placeholder="https://... (Để trống để tự động tạo mã VietQR theo STK)"
-                  value={paymentConfig.qrCodeUrl || ''}
-                  onChange={(e) => setPaymentConfig({ ...paymentConfig, qrCodeUrl: e.target.value })}
-                  className="bg-slate-900 border border-slate-700 text-cyan-300 text-xs font-bold p-3 rounded-xl w-full focus:outline-none"
-                />
-                <p className="text-[10px] text-slate-400 font-normal">
-                  💡 Nếu điền link ảnh QR (Ví dụ ảnh Imgur hoặc Cloudinary), hệ thống sẽ ưu tiên hiển thị ảnh QR này khi khách hàng nạp tiền. Nếu để trống, hệ thống tự động tạo mã VietQR theo STK Ngân Hàng ở trên.
-                </p>
-              </div>
-
-              <div className="space-y-1">
-                <label className="block">Tỷ Lệ Máy Thắng Trong Phòng Ảo (% Bot Win Rate):</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={paymentConfig.botWinRate || 70}
-                  onChange={(e) => setPaymentConfig({ ...paymentConfig, botWinRate: parseInt(e.target.value, 10) || 70 })}
-                  className="bg-slate-900 border border-slate-700 text-amber-400 font-black text-sm p-3 rounded-xl w-full focus:outline-none"
-                  required
-                />
-                <p className="text-[10px] text-slate-400 font-normal">
-                  🤖 Mặc định: <strong>70%</strong> (Máy thắng 70%, Người chơi thắng 30%). Bạn có thể điều chỉnh từ 0% đến 100%.
-                </p>
-              </div>
-
-              <button
-                type="submit"
-                disabled={actionLoading === true}
-                className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-base shadow-lg shadow-purple-500/20 active:scale-95 transition-all mt-2"
-              >
-                <span>LƯU CẤU HÌNH ADMIN 💾</span>
-              </button>
-
-              {/* Dangerous Data Purge Card */}
-              <div className="mt-8 pt-6 border-t-2 border-red-500/30 space-y-3 bg-red-950/20 p-4 rounded-2xl border border-red-500/30">
-                <div className="flex items-center gap-2 text-red-400 font-black text-sm uppercase">
-                  <AlertTriangle className="w-5 h-5 text-red-500 animate-pulse" />
-                  <span>🚨 DỌN SẠCH DỮ LIỆU HỆ THỐNG (DATA PURGE)</span>
+            {configLoading ? (
+              <div className="text-center py-8 text-xs text-slate-400">Đang tải cấu hình Admin...</div>
+            ) : (
+              <div className="space-y-3 text-xs font-bold text-slate-300">
+                <div className="space-y-1">
+                  <label className="block">Tên Ngân hàng Admin:</label>
+                  <input
+                    type="text"
+                    value={paymentConfig.bankName}
+                    onChange={(e) => setPaymentConfig({ ...paymentConfig, bankName: e.target.value })}
+                    className="bg-slate-900 border border-slate-700 text-white font-bold p-3 rounded-xl w-full focus:outline-none"
+                    required
+                  />
                 </div>
-                <p className="text-[11px] text-slate-300 font-semibold leading-relaxed">
-                  Bấm nút bên dưới để dọn sạch 100% <strong>Lịch sử Giao Dịch (Nạp/Rút)</strong>, <strong>Lịch sử Ván Đấu</strong>, <strong>Hoa Hồng Giới Thiệu</strong> và reset các chỉ số ván chơi về ban đầu.
-                </p>
+
+                <div className="space-y-1">
+                  <label className="block">Số tài khoản Admin:</label>
+                  <input
+                    type="text"
+                    value={paymentConfig.accountNumber}
+                    onChange={(e) => setPaymentConfig({ ...paymentConfig, accountNumber: e.target.value })}
+                    className="bg-slate-900 border border-slate-700 text-amber-400 font-black p-3 rounded-xl w-full focus:outline-none"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block">Tên chủ tài khoản Admin:</label>
+                  <input
+                    type="text"
+                    value={paymentConfig.accountHolder}
+                    onChange={(e) => setPaymentConfig({ ...paymentConfig, accountHolder: e.target.value.toUpperCase() })}
+                    className="bg-slate-900 border border-slate-700 text-white font-black p-3 rounded-xl w-full uppercase focus:outline-none"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block">Địa chỉ ví USDT (TRC20) Admin:</label>
+                  <input
+                    type="text"
+                    value={paymentConfig.usdtAddress}
+                    onChange={(e) => setPaymentConfig({ ...paymentConfig, usdtAddress: e.target.value })}
+                    className="bg-slate-900 border border-slate-700 text-emerald-400 font-mono text-xs font-bold p-3 rounded-xl w-full focus:outline-none"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block">Username Telegram Admin (VD: ottadmin2026):</label>
+                  <input
+                    type="text"
+                    value={paymentConfig.adminTelegramUsername}
+                    onChange={(e) => setPaymentConfig({ ...paymentConfig, adminTelegramUsername: e.target.value })}
+                    className="bg-slate-900 border border-slate-700 text-purple-400 font-bold p-3 rounded-xl w-full focus:outline-none"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block">Link Ảnh Mã QR Ngân Hàng (Tùy chọn):</label>
+                  <input
+                    type="text"
+                    placeholder="https://... (Để trống để tự động tạo mã VietQR theo STK)"
+                    value={paymentConfig.qrCodeUrl || ''}
+                    onChange={(e) => setPaymentConfig({ ...paymentConfig, qrCodeUrl: e.target.value })}
+                    className="bg-slate-900 border border-slate-700 text-cyan-300 text-xs font-bold p-3 rounded-xl w-full focus:outline-none"
+                  />
+                  <p className="text-[10px] text-slate-400 font-normal">
+                    💡 Nếu điền link ảnh QR (Ví dụ ảnh Imgur hoặc Cloudinary), hệ thống sẽ ưu tiên hiển thị ảnh QR này khi khách hàng nạp tiền. Nếu để trống, hệ thống tự động tạo mã VietQR theo STK Ngân Hàng ở trên.
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block">Tỷ Lệ Máy Thắng Trong Phòng Ảo (% Bot Win Rate):</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={paymentConfig.botWinRate || 70}
+                    onChange={(e) => setPaymentConfig({ ...paymentConfig, botWinRate: parseInt(e.target.value, 10) || 70 })}
+                    className="bg-slate-900 border border-slate-700 text-amber-400 font-black text-sm p-3 rounded-xl w-full focus:outline-none"
+                    required
+                  />
+                  <p className="text-[10px] text-slate-400 font-normal">
+                    🤖 Mặc định: <strong>70%</strong> (Máy thắng 70%, Người chơi thắng 30%). Bạn có thể điều chỉnh từ 0% đến 100%.
+                  </p>
+                </div>
 
                 <button
-                  type="button"
-                  onClick={() => setIsClearModalOpen(true)}
-                  className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-black text-xs border border-red-400/40 shadow-xl shadow-red-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  type="submit"
+                  disabled={actionLoading === true}
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-base shadow-lg shadow-purple-500/20 active:scale-95 transition-all mt-2"
                 >
-                  <Trash2 className="w-4 h-4" />
-                  <span>🗑️ XÓA TOÀN BỘ LỊCH SỬ GIAO DỊCH & VÁN CHƠI</span>
+                  <span>LƯU CẤU HÌNH ADMIN 💾</span>
                 </button>
               </div>
+            )}
+          </form>
+
+          {/* 30-TIER VIP LEVEL CONFIGURATION FORM */}
+          <form onSubmit={handleSaveVipConfigs} className="card-glass p-5 space-y-4 border-amber-500/30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Crown className="w-5 h-5 text-amber-400 animate-bounce" />
+                <h3 className="text-xs font-black text-amber-400 uppercase tracking-wider">
+                  CẤU HÌNH 30 CẤP ĐỘ VIP (VIP 1 - VIP 30)
+                </h3>
+              </div>
+              <button
+                type="submit"
+                disabled={actionLoading === 'save_vip'}
+                className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md active:scale-95 transition-all"
+              >
+                {actionLoading === 'save_vip' ? 'ĐANG LƯU...' : '💾 LƯU 30 VIP'}
+              </button>
             </div>
-          )}
-        </form>
+            <p className="text-[11px] text-slate-400 font-semibold">
+              Chỉnh sửa <strong>Tổng Xu Cược yêu cầu</strong> và <strong>Số Xu Lương/Thưởng hàng tháng</strong> cho từng cấp VIP từ 1 đến 30.
+            </p>
+
+            {vipLoading ? (
+              <div className="text-center py-6 text-xs text-slate-400 font-bold">Đang tải cấu hình 30 cấp VIP...</div>
+            ) : (
+              <div className="max-h-[350px] overflow-y-auto space-y-2 pr-1 border border-slate-800 rounded-xl p-2 bg-slate-950/60">
+                {vipConfigs.map((cfg, idx) => (
+                  <div key={cfg.vip_level} className="card-glass p-2.5 flex items-center justify-between gap-2 border-slate-800 text-xs">
+                    <div className="flex items-center gap-1.5 w-20">
+                      <span className="font-black text-amber-400">👑 VIP {cfg.vip_level}</span>
+                    </div>
+
+                    <div className="flex flex-1 gap-2">
+                      <div className="flex-1">
+                        <span className="text-[9px] text-slate-400 block font-bold">Tổng cược (Xu):</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={cfg.min_wager}
+                          onChange={(e) => {
+                            const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                            const newConfigs = [...vipConfigs];
+                            newConfigs[idx].min_wager = val;
+                            setVipConfigs(newConfigs);
+                          }}
+                          className="bg-slate-900 border border-slate-700 text-white font-bold p-1.5 rounded-lg w-full text-xs"
+                        />
+                      </div>
+
+                      <div className="flex-1">
+                        <span className="text-[9px] text-slate-400 block font-bold">Thưởng/tháng (Xu):</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={cfg.monthly_reward}
+                          onChange={(e) => {
+                            const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                            const newConfigs = [...vipConfigs];
+                            newConfigs[idx].monthly_reward = val;
+                            setVipConfigs(newConfigs);
+                          }}
+                          className="bg-slate-900 border border-slate-700 text-amber-400 font-bold p-1.5 rounded-lg w-full text-xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </form>
+
+          {/* Dangerous Data Purge Card */}
+          <div className="pt-2 border-t-2 border-red-500/30 space-y-3 bg-red-950/20 p-4 rounded-2xl border border-red-500/30">
+            <div className="flex items-center gap-2 text-red-400 font-black text-sm uppercase">
+              <AlertTriangle className="w-5 h-5 text-red-500 animate-pulse" />
+              <span>🚨 DỌN SẠCH DỮ LIỆU HỆ THỐNG (DATA PURGE)</span>
+            </div>
+            <p className="text-[11px] text-slate-300 font-semibold leading-relaxed">
+              Bấm nút bên dưới để dọn sạch 100% <strong>Lịch sử Giao Dịch (Nạp/Rút)</strong>, <strong>Lịch sử Ván Đấu</strong>, <strong>Hoa Hồng Giới Thiệu</strong> và reset các chỉ số ván chơi về ban đầu.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setIsClearModalOpen(true)}
+              className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-black text-xs border border-red-400/40 shadow-xl shadow-red-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>🗑️ XÓA TOÀN BỘ LỊCH SỬ GIAO DỊCH & VÁN CHƠI</span>
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Wipe Confirmation Modal */}
