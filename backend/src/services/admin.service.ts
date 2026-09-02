@@ -272,7 +272,9 @@ export async function getGameStats() {
 
   const matchStats = await query(`
     SELECT COUNT(*) as total_matches
-    FROM matches
+    FROM matches m
+    JOIN users u ON m.player_id = u.id
+    WHERE u.telegram_id > 0
   `);
 
   const rakeStats = await query(`
@@ -287,6 +289,7 @@ export async function getGameStats() {
            u.first_name as player_name, u.telegram_id as player_tg_id
     FROM matches m
     JOIN users u ON m.player_id = u.id
+    WHERE u.telegram_id > 0
     ORDER BY m.created_at DESC
     LIMIT 30
   `);
