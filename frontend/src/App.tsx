@@ -62,13 +62,27 @@ export const App: React.FC = () => {
 
   if (error && !user) {
     return (
-      <div className="min-h-screen bg-[#0F172A] flex flex-col items-center justify-center text-white p-6 text-center">
-        <div className="text-4xl mb-2">⚠️</div>
-        <h2 className="text-lg font-black text-red-400">Lỗi kết nối</h2>
-        <p className="text-xs text-slate-300 font-semibold mt-2 max-w-xs">{error}</p>
+      <div className="min-h-screen bg-[#0F172A] flex flex-col items-center justify-center text-white p-6 text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center text-3xl">
+          ⚠️
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-xl font-black text-red-400">LỖI KẾT NỐI MÁY CHỦ</h2>
+          <p className="text-xs text-slate-300 font-semibold max-w-xs mx-auto">{error}</p>
+        </div>
+
+        <div className="p-3.5 bg-slate-900/90 border border-amber-500/40 rounded-2xl text-[11px] text-slate-300 text-left space-y-2 max-w-xs mx-auto">
+          <div className="font-extrabold text-amber-400 flex items-center gap-1">
+            <span>💡 Nguyên nhân trên điện thoại:</span>
+          </div>
+          <p className="text-[10px] text-slate-300 font-semibold leading-relaxed">
+            Máy tính chạy được vì truy cập <code className="text-amber-300 bg-slate-950 px-1 py-0.5 rounded">localhost</code> trực tiếp trên máy. Điện thoại không thể gọi đường dẫn localhost của PC và Telegram trên di động <strong>bắt buộc phải có đường dẫn HTTPS công khai</strong>.
+          </p>
+        </div>
+
         <button
           onClick={() => window.location.reload()}
-          className="mt-6 px-6 py-2.5 btn-game-primary text-sm"
+          className="px-6 py-3.5 btn-game-primary text-sm shadow-amber-500/20"
         >
           TẢI LẠI TRANG
         </button>
