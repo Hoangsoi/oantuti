@@ -310,6 +310,27 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
     }
   };
 
+  const handleDeleteUser = async (userId: number, userName: string) => {
+    if (!window.confirm(`⚠️ BẠN CÓ CHẮC CHẮN MUỐN XÓA TÀI KHOẢN "${userName}" (ID #${userId}) RA KHỎI HỆ THỐNG KHÔNG?\n\nHành động này sẽ xóa vĩnh viễn và không thể hoàn tác!`)) {
+      return;
+    }
+
+    setActionLoading(`delete_${userId}`);
+    setStatusMsg(null);
+    triggerHapticImpact('heavy');
+    try {
+      const res = await api.deleteAdminUser(userId);
+      triggerHapticNotification('success');
+      setStatusMsg({ type: 'success', text: res.message || `Đã xóa sạch tài khoản ${userName} thành công!` });
+      loadUsers();
+    } catch (err: any) {
+      triggerHapticNotification('error');
+      setStatusMsg({ type: 'error', text: err.message || 'Không thể xóa tài khoản' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleSavePaymentConfig = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionLoading(true);
@@ -781,6 +802,15 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
                       >
                         {u.is_blocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
                         <span>{u.is_blocked ? 'MỞ KHÓA' : 'KHÓA TK'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteUser(u.id, u.first_name)}
+                        disabled={actionLoading === `delete_${u.id}`}
+                        className="px-2.5 py-1.5 rounded-xl bg-red-600/30 hover:bg-red-600 text-red-300 border border-red-500/50 font-extrabold text-[10px] flex items-center gap-1 active:scale-95 transition-all"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                        <span>XÓA TK</span>
                       </button>
                     </div>
                   </div>

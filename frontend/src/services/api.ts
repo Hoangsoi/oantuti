@@ -276,6 +276,12 @@ export const api = {
     });
   },
 
+  deleteAdminUser: async (userId: number) => {
+    return request<any>(`/admin/users/${userId}`, {
+      method: 'DELETE',
+    });
+  },
+
   getAdminGameStats: async () => {
     return request<any>('/admin/stats');
   },

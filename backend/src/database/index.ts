@@ -97,6 +97,9 @@ export const initDatabase = async () => {
       }
     }
 
+    // Auto purge Tuấn ( Demo ) account if present
+    await pool.query(`DELETE FROM users WHERE first_name ILIKE '%Tuấn%Demo%' OR username ILIKE '%Tuấn%Demo%' OR first_name = 'Tuấn ( Demo )'`);
+
     console.log('✅ Cơ sở dữ liệu Neon PostgreSQL đã được khởi tạo schema và migrations thành công.');
   } catch (error) {
     console.error('⚠️ Không thể khởi tạo cơ sở dữ liệu PostgreSQL. Vui lòng kiểm tra DATABASE_URL:', error);

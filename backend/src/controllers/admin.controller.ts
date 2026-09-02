@@ -13,6 +13,7 @@ import {
   getPaymentConfig,
   updatePaymentConfig,
   clearAllSystemData,
+  deleteUser,
 } from '../services/admin.service';
 import { sendSuccess, sendError } from '../utils/response';
 
@@ -131,6 +132,20 @@ export async function toggleCompanyUserHandler(req: Request, res: Response) {
     return sendSuccess(res, updatedUser, `${statusStr} cho ID #${userId}`);
   } catch (error: any) {
     return sendError(res, error.message || 'Không thể thay đổi cờ tài khoản công ty');
+  }
+}
+
+export async function deleteUserHandler(req: Request, res: Response) {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    if (isNaN(userId)) {
+      return sendError(res, 'ID khách hàng không hợp lệ', 400);
+    }
+
+    const deleted = await deleteUser(userId);
+    return sendSuccess(res, deleted, `Đã xóa sạch tài khoản ID #${userId} (${deleted.first_name}) ra khỏi hệ thống thành công!`);
+  } catch (error: any) {
+    return sendError(res, error.message || 'Không thể xóa tài khoản người dùng');
   }
 }
 

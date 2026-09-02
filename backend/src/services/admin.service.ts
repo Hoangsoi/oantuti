@@ -478,3 +478,11 @@ export async function clearAllSystemData() {
     client.release();
   }
 }
+
+export async function deleteUser(userId: number) {
+  const res = await query('DELETE FROM users WHERE id = $1 RETURNING id, first_name, username', [userId]);
+  if (res.rows.length === 0) {
+    throw new Error('Tài khoản không tồn tại');
+  }
+  return res.rows[0];
+}

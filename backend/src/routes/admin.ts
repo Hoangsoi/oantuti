@@ -9,6 +9,7 @@ import {
   adjustUserCoinsHandler,
   toggleBlockUserHandler,
   toggleCompanyUserHandler,
+  deleteUserHandler,
   getGameStatsHandler,
   getPaymentConfigHandler,
   updatePaymentConfigHandler,
@@ -39,6 +40,7 @@ router.get('/users', getAllUsersHandler);
 router.post('/users/:id/adjust-coins', validateBody(adjustCoinsSchema), adjustUserCoinsHandler);
 router.post('/users/:id/toggle-block', toggleBlockUserHandler);
 router.post('/users/:id/toggle-company', toggleCompanyUserHandler);
+router.delete('/users/:id', deleteUserHandler);
 
 // Win/Loss & Game System Statistics
 router.get('/stats', getGameStatsHandler);
