@@ -358,7 +358,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
             <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] text-slate-300 font-semibold text-left flex items-start gap-2">
               <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
               <span>
-                Nền tảng giữ <strong className="text-amber-400 font-black">5%</strong> tổng hũ cược của người thắng (Hòa: Hoàn 100% Xu).
+                Nền tảng giữ <strong className="text-amber-400 font-black">5% giá phòng cược</strong> (Ví dụ: Phòng cược 10,000 Xu thu phí 500 Xu, người thắng nhận +9,500 Xu).
               </span>
             </div>
 
@@ -420,9 +420,8 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
   const myMoveLocked = isHost ? room.has_host_locked : room.has_guest_locked;
 
   const betAmt = room.bet_amount || 0;
-  const totalPot = betAmt * 2;
-  const houseFee = Math.floor(totalPot * 0.05);
-  const winnerPayout = totalPot - houseFee;
+  const houseFee = Math.floor(betAmt * 0.05);
+  const winnerNetGain = betAmt - houseFee;
 
   return (
     <div className="flex flex-col min-h-screen px-4 py-6 max-w-md mx-auto justify-between pb-24">
@@ -517,7 +516,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
             </div>
             {betAmt > 0 && (
               <div className="text-emerald-400">
-                Thắng nhận: +{winnerPayout.toLocaleString()} Xu (Phí 5%)
+                Thắng nhận: +{winnerNetGain.toLocaleString()} Xu (Phí 5% giá phòng)
               </div>
             )}
           </div>

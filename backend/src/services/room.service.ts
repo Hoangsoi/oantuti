@@ -327,8 +327,7 @@ export async function playRoomMove(userId: number, roomCode: string, move: Move)
       let guestRatingChange = 0;
 
       const betAmount = room.bet_amount || 0;
-      const totalPot = betAmount * 2;
-      houseFee = Math.floor(totalPot * 0.05);
+      houseFee = Math.floor(betAmount * 0.05); // Platform fee is 5% of the room bet amount
       const winnerNetGain = betAmount - houseFee;
 
       if (hostOutcome === 'win') {
