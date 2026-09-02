@@ -137,7 +137,7 @@ export const LobbyPage: React.FC<LobbyPageProps> = ({
           className="py-3 px-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-1.5 active:scale-95 transition-all"
         >
           <Bot className="w-4 h-4 text-emerald-200" />
-          <span>🤖 CHƠI VỚI MÁY (BOT)</span>
+          <span>🤖 CHƠI VỚI BOT MIỄN PHÍ</span>
         </button>
 
         <button
