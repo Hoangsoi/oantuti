@@ -30,9 +30,24 @@ export const query = async <T extends QueryResultRow = any>(
 
 export const initDatabase = async () => {
   try {
-    const schemaPath = path.join(__dirname, 'schema.sql');
-    const schemaSql = fs.readFileSync(schemaPath, 'utf8');
-    await pool.query(schemaSql);
+    const possibleSchemaPaths = [
+      path.join(__dirname, 'schema.sql'),
+      path.join(__dirname, '../../src/database/schema.sql'),
+      path.join(process.cwd(), 'src/database/schema.sql'),
+      path.join(process.cwd(), 'backend/src/database/schema.sql'),
+    ];
+
+    let schemaSql = '';
+    for (const p of possibleSchemaPaths) {
+      if (fs.existsSync(p)) {
+        schemaSql = fs.readFileSync(p, 'utf8');
+        break;
+      }
+    }
+
+    if (schemaSql) {
+      await pool.query(schemaSql);
+    }
 
     // Auto migrations for existing databases
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS coins INT DEFAULT 1000 NOT NULL');
