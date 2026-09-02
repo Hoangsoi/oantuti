@@ -49,6 +49,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
     usdtAddress: string;
     adminTelegramUsername: string;
     qrCodeUrl: string;
+    botWinRate: number;
   }>({
     bankName: '',
     accountNumber: '',
@@ -56,6 +57,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
     usdtAddress: '',
     adminTelegramUsername: '',
     qrCodeUrl: '',
+    botWinRate: 70,
   });
   const [configLoading, setConfigLoading] = useState<boolean>(false);
 
@@ -827,6 +829,22 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
                 />
                 <p className="text-[10px] text-slate-400 font-normal">
                   💡 Nếu điền link ảnh QR (Ví dụ ảnh Imgur hoặc Cloudinary), hệ thống sẽ ưu tiên hiển thị ảnh QR này khi khách hàng nạp tiền. Nếu để trống, hệ thống tự động tạo mã VietQR theo STK Ngân Hàng ở trên.
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block">Tỷ Lệ Máy Thắng Trong Phòng Ảo (% Bot Win Rate):</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={paymentConfig.botWinRate || 70}
+                  onChange={(e) => setPaymentConfig({ ...paymentConfig, botWinRate: parseInt(e.target.value, 10) || 70 })}
+                  className="bg-slate-900 border border-slate-700 text-amber-400 font-black text-sm p-3 rounded-xl w-full focus:outline-none"
+                  required
+                />
+                <p className="text-[10px] text-slate-400 font-normal">
+                  🤖 Mặc định: <strong>70%</strong> (Máy thắng 70%, Người chơi thắng 30%). Bạn có thể điều chỉnh từ 0% đến 100%.
                 </p>
               </div>
 

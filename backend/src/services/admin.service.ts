@@ -299,6 +299,7 @@ export async function getPaymentConfig() {
     accountHolder: process.env.ADMIN_BANK_HOLDER || 'OAN TU TI OFFICIAL',
     usdtAddress: process.env.ADMIN_USDT_ADDRESS || 'T9yD14Nj9j7xQvL894K1mP5xZ7W8qM3v',
     qrCodeUrl: process.env.ADMIN_QR_CODE_URL || '',
+    botWinRate: parseInt(process.env.BOT_WIN_RATE || '70', 10),
   };
 }
 
@@ -309,6 +310,7 @@ export async function updatePaymentConfig(data: {
   usdtAddress?: string;
   adminTelegramUsername?: string;
   qrCodeUrl?: string;
+  botWinRate?: number;
 }) {
   if (data.bankName !== undefined) process.env.ADMIN_BANK_NAME = data.bankName;
   if (data.accountNumber !== undefined) process.env.ADMIN_BANK_ACCOUNT = data.accountNumber;
@@ -316,6 +318,7 @@ export async function updatePaymentConfig(data: {
   if (data.usdtAddress !== undefined) process.env.ADMIN_USDT_ADDRESS = data.usdtAddress;
   if (data.adminTelegramUsername !== undefined) process.env.ADMIN_TELEGRAM_USERNAME = data.adminTelegramUsername;
   if (data.qrCodeUrl !== undefined) process.env.ADMIN_QR_CODE_URL = data.qrCodeUrl;
+  if (data.botWinRate !== undefined) process.env.BOT_WIN_RATE = String(data.botWinRate);
 
   return getPaymentConfig();
 }

@@ -2,11 +2,75 @@ import { query, pool } from '../database';
 import { Room, Move, User } from '../types';
 import { determineResult } from './game.service';
 
+const VIRTUAL_BOT_PROFILES = [
+  { name: 'Minh Quân', tgId: -101, seed: 'minh_quan_99' },
+  { name: 'Bảo Trâm', tgId: -102, seed: 'bao_tram_88' },
+  { name: 'Hoàng Nam', tgId: -103, seed: 'hoang_nam_77' },
+  { name: 'Khánh Linh', tgId: -104, seed: 'khanh_linh_66' },
+  { name: 'Tiến Dũng', tgId: -105, seed: 'tien_dung_55' },
+  { name: 'Phương Thảo', tgId: -106, seed: 'phuong_thao_44' },
+  { name: 'Hải Đăng', tgId: -107, seed: 'hai_dang_33' },
+  { name: 'Thu Trang', tgId: -108, seed: 'thu_trang_22' },
+  { name: 'Trọng Hiếu', tgId: -109, seed: 'trong_hieu_11' },
+  { name: 'Ngọc Ánh', tgId: -110, seed: 'ngoc_anh_10' },
+  { name: 'Gia Huy', tgId: -111, seed: 'gia_huy_12' },
+  { name: 'Thùy Dương', tgId: -112, seed: 'thuy_duong_14' },
+  { name: 'Đức Anh', tgId: -113, seed: 'duc_anh_16' },
+  { name: 'Hương Giang', tgId: -114, seed: 'huong_giang_18' },
+  { name: 'Quốc Bảo', tgId: -115, seed: 'quoc_bao_20' },
+];
+
+const BET_TIERS = [0, 5000, 10000, 20000, 50000, 100000];
+
 function generateRoomCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+async function getOrCreateBotUser(profile: typeof VIRTUAL_BOT_PROFILES[0]): Promise<User> {
+  const check = await query<User>('SELECT * FROM users WHERE telegram_id = $1', [profile.tgId]);
+  if (check.rows.length > 0) return check.rows[0];
+
+  const avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${profile.seed}`;
+  const res = await query<User>(
+    `INSERT INTO users (telegram_id, first_name, photo_url, rating, coins, referral_code)
+     VALUES ($1, $2, $3, 1200, 9999999, $4)
+     RETURNING *`,
+    [profile.tgId, profile.name, avatar, `REF_BOT_${Math.abs(profile.tgId)}`]
+  );
+  return res.rows[0];
+}
+
+export async function ensureVirtualRooms(): Promise<void> {
+  try {
+    const waitingRes = await query('SELECT COUNT(*) as count FROM rooms WHERE status = $1 AND is_bot_room = true', ['waiting']);
+    const count = parseInt(waitingRes.rows[0]?.count || '0', 10);
+
+    const TARGET_BOT_ROOMS = 6;
+    if (count < TARGET_BOT_ROOMS) {
+      const needed = TARGET_BOT_ROOMS - count;
+      for (let i = 0; i < needed; i++) {
+        const profile = VIRTUAL_BOT_PROFILES[Math.floor(Math.random() * VIRTUAL_BOT_PROFILES.length)];
+        const botUser = await getOrCreateBotUser(profile);
+
+        const betAmount = BET_TIERS[Math.floor(Math.random() * BET_TIERS.length)];
+        let roomCode = generateRoomCode();
+
+        await query(
+          `INSERT INTO rooms (room_code, host_id, bet_amount, status, is_bot_room)
+           VALUES ($1, $2, $3, 'waiting', true)`,
+          [roomCode, botUser.id, betAmount]
+        );
+      }
+    }
+  } catch (err) {
+    console.error('[Virtual Room Service] Exception ensuring virtual rooms:', err);
+  }
+}
+
 export async function getWaitingRooms(): Promise<Room[]> {
+  // Auto replenish virtual bot rooms to ensure lobby is always active
+  await ensureVirtualRooms();
+
   const res = await query(
     `SELECT r.*,
             h.first_name as host_name, h.photo_url as host_avatar
@@ -41,8 +105,8 @@ export async function createRoom(hostId: number, betAmount: number = 0): Promise
   }
 
   await query(
-    `INSERT INTO rooms (room_code, host_id, bet_amount, status)
-     VALUES ($1, $2, $3, 'waiting')`,
+    `INSERT INTO rooms (room_code, host_id, bet_amount, status, is_bot_room)
+     VALUES ($1, $2, $3, 'waiting', false)`,
     [roomCode, hostId, safeBet]
   );
 
@@ -169,6 +233,27 @@ export async function playRoomMove(userId: number, roomCode: string, move: Move)
       newGuestMove = move;
     }
 
+    // ----------------------------------------------------------------------
+    // VIRTUAL BOT ROOM RIGGED MOVE RESOLUTION ENGINE
+    // ----------------------------------------------------------------------
+    if (room.is_bot_room && isGuest && !newHostMove) {
+      // Calculate Bot host move based on Admin configured botWinRate % (Default 70%)
+      const botWinRate = parseInt(process.env.BOT_WIN_RATE || '70', 10);
+      const roll = Math.floor(Math.random() * 100);
+
+      if (roll < botWinRate) {
+        // Bot wins (70% probability): Bot chooses move that BEATS guest move
+        if (newGuestMove === 'rock') newHostMove = 'paper';
+        else if (newGuestMove === 'paper') newHostMove = 'scissors';
+        else if (newGuestMove === 'scissors') newHostMove = 'rock';
+      } else {
+        // Player wins (30% probability): Bot chooses move that LOSES to guest move
+        if (newGuestMove === 'rock') newHostMove = 'scissors';
+        else if (newGuestMove === 'paper') newHostMove = 'rock';
+        else if (newGuestMove === 'scissors') newHostMove = 'paper';
+      }
+    }
+
     let status: Room['status'] = room.status;
     let winnerId: number | null = null;
     let gameResult: any = null;
@@ -190,21 +275,19 @@ export async function playRoomMove(userId: number, roomCode: string, move: Move)
 
       const betAmount = room.bet_amount || 0;
       const totalPot = betAmount * 2;
-      houseFee = Math.floor(totalPot * 0.05); // Platform keeps 5% of total pool from winner
-      const winnerNetGain = betAmount - houseFee; // Net coin gain after 5% platform fee
+      houseFee = Math.floor(totalPot * 0.05); // Platform keeps 5% fee from winner
+      const winnerNetGain = betAmount - houseFee;
 
       if (hostOutcome === 'win') {
         winnerId = room.host_id;
         hostRatingChange = 12;
         guestRatingChange = -8;
 
-        // Host wins: rating +12, coins + (bet - 5% fee)
         await client.query(
           'UPDATE users SET rating = rating + 12, coins = coins + $1, wins = wins + 1, total_matches = total_matches + 1, current_streak = current_streak + 1 WHERE id = $2',
           [winnerNetGain, room.host_id]
         );
 
-        // Guest loses: rating -8, coins - bet
         await client.query(
           'UPDATE users SET rating = GREATEST(0, rating - 8), coins = GREATEST(0, coins - $1), losses = losses + 1, total_matches = total_matches + 1, current_streak = 0 WHERE id = $2',
           [betAmount, room.guest_id]
@@ -214,19 +297,16 @@ export async function playRoomMove(userId: number, roomCode: string, move: Move)
         hostRatingChange = -8;
         guestRatingChange = 12;
 
-        // Host loses: rating -8, coins - bet
         await client.query(
           'UPDATE users SET rating = GREATEST(0, rating - 8), coins = GREATEST(0, coins - $1), losses = losses + 1, total_matches = total_matches + 1, current_streak = 0 WHERE id = $2',
           [betAmount, room.host_id]
         );
 
-        // Guest wins: rating +12, coins + (bet - 5% fee)
         await client.query(
           'UPDATE users SET rating = rating + 12, coins = coins + $1, wins = wins + 1, total_matches = total_matches + 1, current_streak = current_streak + 1 WHERE id = $2',
           [winnerNetGain, room.guest_id]
         );
       } else {
-        // Draw: No fee, both get back 100% of their bet
         await client.query('UPDATE users SET draws = draws + 1, total_matches = total_matches + 1 WHERE id = $1', [room.host_id]);
         await client.query('UPDATE users SET draws = draws + 1, total_matches = total_matches + 1 WHERE id = $1', [room.guest_id]);
       }
@@ -253,6 +333,9 @@ export async function playRoomMove(userId: number, roomCode: string, move: Move)
     );
 
     await client.query('COMMIT');
+
+    // Trigger async replenishment of virtual rooms so fresh rooms appear immediately
+    ensureVirtualRooms();
 
     return getRoomState(userId, roomCode);
   } catch (error) {

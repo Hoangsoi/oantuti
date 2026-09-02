@@ -39,6 +39,7 @@ export const initDatabase = async () => {
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT false NOT NULL');
     await pool.query('ALTER TABLE rooms ADD COLUMN IF NOT EXISTS bet_amount INT DEFAULT 0 NOT NULL');
     await pool.query('ALTER TABLE rooms ADD COLUMN IF NOT EXISTS fee_amount INT DEFAULT 0 NOT NULL');
+    await pool.query('ALTER TABLE rooms ADD COLUMN IF NOT EXISTS is_bot_room BOOLEAN DEFAULT false NOT NULL');
 
     console.log('✅ Cơ sở dữ liệu Neon PostgreSQL đã được khởi tạo schema và migrations thành công.');
   } catch (error) {
