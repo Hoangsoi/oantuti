@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { User, WalletData, Transaction } from '../types';
 import { api } from '../services/api';
-import { openTelegramDirect, triggerHapticImpact, triggerHapticNotification } from '../services/telegram';
-import { Copy, Check, Wallet as WalletIcon, Building, MessageCircle } from 'lucide-react';
+import { shareTelegramLink, openTelegramDirectChat, triggerHapticImpact, triggerHapticNotification } from '../services/telegram';
+import { Copy, Check, Wallet as WalletIcon, Building, MessageCircle, Send } from 'lucide-react';
 
 interface WalletPageProps {
   currentUser: User | null;
@@ -95,14 +95,10 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
       : `💬 BÁO YÊU CẦU RÚT TIỀN (@${ADMIN_TELEGRAM_USERNAME})\n-----------------------\n🔑 Mã đơn rút: #${tx.id}\n👤 Khách hàng: ${currentUser?.first_name} (ID: ${currentUser?.id})\n🏦 Nơi nhận: ${bankDetailText}\n🪙 Số Xu rút: -${tx.coins.toLocaleString()} Xu\n💵 Số tiền thực nhận: ${Number(tx.amount).toLocaleString()} ${tx.payment_method === 'usdt' ? 'USDT' : 'VNĐ'}\n👉 Vui lòng kiểm tra và chuyển tiền giúp tôi!`;
   };
 
-  const handleOpenAdminChat = (tx: Transaction) => {
+  const handleSendPrefilledMessage = (tx: Transaction) => {
     const text = getAdminNotificationText(tx);
-    // 1. Copy text to clipboard
     navigator.clipboard.writeText(text);
-
-    // 2. Open Telegram with PRE-FILLED text
-    const shareUrl = `https://t.me/share/url?text=${encodeURIComponent(text)}`;
-    openTelegramDirect(shareUrl);
+    shareTelegramLink(`https://t.me/${ADMIN_TELEGRAM_USERNAME}`, text);
   };
 
   // Submit Link Bank
@@ -146,7 +142,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
       setCreatedTx(tx);
       triggerHapticNotification('success');
       setSuccessMsg(`Yêu cầu nạp tiền #${tx.id} đã khởi tạo thành công! Bấm nút bên dưới để gửi tin nhắn tự động điền sẵn nội dung cho Admin (@${ADMIN_TELEGRAM_USERNAME}).`);
-      handleOpenAdminChat(tx);
+      handleSendPrefilledMessage(tx);
       loadWallet();
     } catch (err: any) {
       triggerHapticNotification('error');
@@ -180,7 +176,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
       setCreatedTx(result.transaction);
       triggerHapticNotification('success');
       setSuccessMsg(`Yêu cầu rút #${result.transaction.id} (${coins.toLocaleString()} Xu) đã gửi thành công! Bấm nút bên dưới để gửi tin nhắn tự động điền sẵn nội dung cho Admin (@${ADMIN_TELEGRAM_USERNAME}).`);
-      handleOpenAdminChat(result.transaction);
+      handleSendPrefilledMessage(result.transaction);
       onUserUpdated(result.updatedUser);
       loadWallet();
     } catch (err: any) {
@@ -281,20 +277,30 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
           {createdTx && (
             <div className="space-y-2 pt-1">
               <button
-                onClick={() => handleOpenAdminChat(createdTx)}
+                onClick={() => handleSendPrefilledMessage(createdTx)}
                 className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all"
               >
                 <MessageCircle className="w-4 h-4 text-amber-400" />
                 <span>🚀 GỬI THÔNG BÁO TỰ ĐỘNG CHO ADMIN (# {createdTx.id})</span>
               </button>
 
-              <button
-                onClick={() => handleCopy(getAdminNotificationText(createdTx), 'admin_msg')}
-                className="w-full py-2 px-3 rounded-xl bg-slate-800 text-slate-300 text-[11px] font-bold border border-slate-700 flex items-center justify-center gap-1.5 active:scale-95"
-              >
-                {copiedKey === 'admin_msg' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedKey === 'admin_msg' ? 'Đã sao chép tin nhắn Báo Admin' : 'Sao chép nội dung gửi Admin'}</span>
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => openTelegramDirectChat(ADMIN_TELEGRAM_USERNAME)}
+                  className="py-2.5 px-3 rounded-xl bg-slate-800 text-amber-400 font-extrabold text-[11px] border border-slate-700 flex items-center justify-center gap-1.5 active:scale-95"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>CHAT VỚI ADMIN</span>
+                </button>
+
+                <button
+                  onClick={() => handleCopy(getAdminNotificationText(createdTx), 'admin_msg')}
+                  className="py-2.5 px-3 rounded-xl bg-slate-800 text-slate-300 font-extrabold text-[11px] border border-slate-700 flex items-center justify-center gap-1.5 active:scale-95"
+                >
+                  {copiedKey === 'admin_msg' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedKey === 'admin_msg' ? 'ĐÃ SAO CHÉP' : 'SAO CHÉP NỘI DUNG'}</span>
+                </button>
+              </div>
             </div>
           )}
         </div>

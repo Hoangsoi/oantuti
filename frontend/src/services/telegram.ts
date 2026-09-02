@@ -73,21 +73,33 @@ export function triggerHapticNotification(type: 'success' | 'error' | 'warning')
   }
 }
 
-export function shareTelegramLink(url: string, text: string) {
+/**
+ * Opens Telegram Share URL with pre-filled text.
+ * Requires valid `targetUrl` parameter so Telegram server never redirects to telegram.org.
+ */
+export function shareTelegramLink(targetUrl: string, text: string) {
   const tg = getTelegramWebApp();
-  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
-  if (tg) {
+  const validUrl = targetUrl || 'https://t.me/lucky20261102';
+  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(validUrl)}&text=${encodeURIComponent(text)}`;
+  
+  if (tg && typeof tg.openTelegramLink === 'function') {
     tg.openTelegramLink(shareUrl);
   } else {
     window.open(shareUrl, '_blank');
   }
 }
 
-export function openTelegramDirect(url: string) {
+/**
+ * Opens direct private chat with Admin Telegram Username without share dialog.
+ */
+export function openTelegramDirectChat(username: string = 'lucky20261102') {
   const tg = getTelegramWebApp();
+  const cleanUsername = username.replace('@', '').replace('https://t.me/', '');
+  const directUrl = `https://t.me/${cleanUsername}`;
+
   if (tg && typeof tg.openTelegramLink === 'function') {
-    tg.openTelegramLink(url);
+    tg.openTelegramLink(directUrl);
   } else {
-    window.open(url, '_blank');
+    window.open(directUrl, '_blank');
   }
 }
