@@ -91,6 +91,12 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
           result = 'lose';
         }
 
+        const betAmount = room.bet_amount || 0;
+        const totalPot = betAmount * 2;
+        const houseFee = Math.floor(totalPot * 0.05);
+        const winnerNetGain = betAmount - houseFee;
+        const coinsChange = result === 'win' ? winnerNetGain : result === 'lose' ? -betAmount : 0;
+
         const simulatedMatch = {
           id: room.id,
           player_id: currentUser.id,
@@ -101,6 +107,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
           rating_before: currentUser.rating,
           rating_change: result === 'win' ? 12 : result === 'lose' ? -8 : 0,
           rating_after: currentUser.rating + (result === 'win' ? 12 : result === 'lose' ? -8 : 0),
+          coins_change: coinsChange,
           created_at: new Date().toISOString(),
         };
 

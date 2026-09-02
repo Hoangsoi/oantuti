@@ -131,6 +131,18 @@ export const api = {
     });
   },
 
+  resetRoom: async (roomCode: string) => {
+    return request<Room>(`/room/${roomCode}/reset`, {
+      method: 'POST',
+    });
+  },
+
+  leaveRoom: async (roomCode: string) => {
+    return request<void>(`/room/${roomCode}/leave`, {
+      method: 'POST',
+    });
+  },
+
   // Wallet APIs
   getWalletInfo: async () => {
     return request<WalletData>('/wallet/info');

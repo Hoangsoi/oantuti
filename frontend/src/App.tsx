@@ -138,7 +138,13 @@ export const App: React.FC = () => {
         return (
           <ResultPage
             match={currentMatch}
-            onPlayAgain={() => navigateTo('game')}
+            onPlayAgain={() => {
+              if (currentMatch?.opponent_type === 'pvp') {
+                navigateTo('room');
+              } else {
+                navigateTo('game');
+              }
+            }}
             onGoHome={() => navigateTo('home')}
           />
         );

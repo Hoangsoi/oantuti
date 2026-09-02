@@ -33,6 +33,7 @@ export interface Match {
   rating_before: number;
   rating_change: number;
   rating_after: number;
+  coins_change?: number;
   created_at: string;
 }
 

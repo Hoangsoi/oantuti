@@ -100,21 +100,44 @@ export const ResultPage: React.FC<ResultPageProps> = ({ match, onPlayAgain, onGo
           </div>
         </div>
 
-        {/* Rating Point Change Display */}
-        <div className="mt-6 pt-4 border-t border-slate-700/80 flex items-center justify-center gap-2">
-          <Trophy className="w-5 h-5 text-amber-400" />
-          <span className="text-sm font-bold text-slate-300">Điểm số:</span>
-          <span
-            className={`text-xl font-black ${
-              match.rating_change > 0
-                ? 'text-emerald-400'
-                : match.rating_change < 0
-                ? 'text-red-400'
-                : 'text-slate-400'
-            }`}
-          >
-            {match.rating_change > 0 ? `+${match.rating_change}` : match.rating_change} điểm
-          </span>
+        {/* Rating & Coins Change Display */}
+        <div className="mt-6 pt-4 border-t border-slate-700/80 space-y-2">
+          {match.coins_change !== undefined && (
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-sm font-bold text-slate-300">Biến động Xu:</span>
+              <span
+                className={`text-2xl font-black ${
+                  match.coins_change > 0
+                    ? 'text-emerald-400'
+                    : match.coins_change < 0
+                    ? 'text-red-400'
+                    : 'text-amber-400'
+                }`}
+              >
+                {match.coins_change > 0
+                  ? `+${match.coins_change.toLocaleString()} Xu`
+                  : match.coins_change < 0
+                  ? `${match.coins_change.toLocaleString()} Xu`
+                  : '0 Xu (Hoàn cược)'}
+              </span>
+            </div>
+          )}
+
+          <div className="flex items-center justify-center gap-2">
+            <Trophy className="w-4 h-4 text-amber-400" />
+            <span className="text-xs font-bold text-slate-400">Điểm số:</span>
+            <span
+              className={`text-base font-black ${
+                match.rating_change > 0
+                  ? 'text-emerald-400'
+                  : match.rating_change < 0
+                  ? 'text-red-400'
+                  : 'text-slate-400'
+              }`}
+            >
+              {match.rating_change > 0 ? `+${match.rating_change}` : match.rating_change} điểm
+            </span>
+          </div>
         </div>
       </div>
 

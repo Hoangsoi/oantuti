@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { createRoom, joinRoom, getRoomState, playRoomMove, getWaitingRooms } from '../services/room.service';
+import { createRoom, joinRoom, getRoomState, playRoomMove, getWaitingRooms, resetRoom, leaveRoom } from '../services/room.service';
 import { sendSuccess, sendError } from '../utils/response';
 import { Move } from '../types';
 
@@ -57,5 +57,27 @@ export async function playRoomMoveHandler(req: Request, res: Response) {
     return sendSuccess(res, room, 'Khóa nước đi thành công');
   } catch (error: any) {
     return sendError(res, error.message || 'Lỗi khi khóa nước đi', 400);
+  }
+}
+
+export async function resetRoomHandler(req: Request, res: Response) {
+  try {
+    if (!req.user) return sendError(res, 'Chưa đăng nhập', 401);
+    const roomCode = req.params.roomCode;
+    const room = await resetRoom(req.user.id, roomCode);
+    return sendSuccess(res, room, 'Reset phòng đấu thành công');
+  } catch (error: any) {
+    return sendError(res, error.message || 'Lỗi khi reset phòng đấu', 400);
+  }
+}
+
+export async function leaveRoomHandler(req: Request, res: Response) {
+  try {
+    if (!req.user) return sendError(res, 'Chưa đăng nhập', 401);
+    const roomCode = req.params.roomCode;
+    await leaveRoom(req.user.id, roomCode);
+    return sendSuccess(res, null, 'Đã rời phòng đấu');
+  } catch (error: any) {
+    return sendError(res, error.message || 'Lỗi khi rời phòng đấu', 400);
   }
 }

@@ -345,3 +345,36 @@ export async function playRoomMove(userId: number, roomCode: string, move: Move)
     client.release();
   }
 }
+
+export async function resetRoom(userId: number, roomCode: string): Promise<Room> {
+  const cleanCode = roomCode.trim();
+  const roomRes = await query<Room>('SELECT * FROM rooms WHERE room_code = $1', [cleanCode]);
+  if (roomRes.rows.length === 0) throw new Error('Phòng không tồn tại');
+  const room = roomRes.rows[0];
+
+  if (room.host_id !== userId && room.guest_id !== userId) {
+    throw new Error('Bạn không có quyền thao tác trên phòng này');
+  }
+
+  await query(
+    `UPDATE rooms 
+     SET host_move = NULL, guest_move = NULL, status = CASE WHEN guest_id IS NOT NULL THEN 'ready' ELSE 'waiting' END, winner_id = NULL, result = NULL, updated_at = CURRENT_TIMESTAMP
+     WHERE id = $1`,
+    [room.id]
+  );
+
+  return getRoomState(userId, cleanCode);
+}
+
+export async function leaveRoom(userId: number, roomCode: string): Promise<void> {
+  const cleanCode = roomCode.trim();
+  const roomRes = await query<Room>('SELECT * FROM rooms WHERE room_code = $1', [cleanCode]);
+  if (roomRes.rows.length === 0) return;
+  const room = roomRes.rows[0];
+
+  if (room.host_id === userId) {
+    await query("UPDATE rooms SET status = 'expired', updated_at = CURRENT_TIMESTAMP WHERE id = $1", [room.id]);
+  } else if (room.guest_id === userId) {
+    await query("UPDATE rooms SET guest_id = NULL, status = 'waiting', host_move = NULL, guest_move = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1", [room.id]);
+  }
+}
