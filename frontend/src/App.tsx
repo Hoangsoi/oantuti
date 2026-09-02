@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Room } from './types';
 import { useGame } from './hooks/useGame';
 import { Layout } from './components/Layout';
 import { HomePage } from './pages/HomePage';
@@ -30,6 +31,7 @@ export const App: React.FC = () => {
   } = useGame();
 
   const [isTopupOpen, setIsTopupOpen] = useState<boolean>(false);
+  const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
 
   // Check if opened from Telegram room deep link (startapp=room_839210)
   useEffect(() => {
@@ -92,6 +94,7 @@ export const App: React.FC = () => {
         return (
           <RoomPage
             currentUser={user}
+            initialRoom={currentRoom}
             onFinishRoomMatch={(simulatedMatch) => {
               showResult(simulatedMatch);
             }}
@@ -112,11 +115,15 @@ export const App: React.FC = () => {
           <LobbyPage
             user={user}
             onBackHome={() => navigateTo('home')}
-            onJoinRoom={() => {
+            onJoinRoom={(room) => {
+              setCurrentRoom(room);
               navigateTo('room');
             }}
             onPlayBot={() => navigateTo('game')}
-            onCreateRoomModal={() => navigateTo('room')}
+            onCreateRoomModal={() => {
+              setCurrentRoom(null);
+              navigateTo('room');
+            }}
           />
         );
       case 'admin':

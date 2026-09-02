@@ -7,6 +7,7 @@ import { Users, Plus, KeyRound, Copy, Share2, Check, Lock, Coins, ShieldAlert } 
 
 interface RoomPageProps {
   currentUser: User | null;
+  initialRoom?: Room | null;
   onFinishRoomMatch: (matchResult: any) => void;
   onBackHome: () => void;
   onOpenTopup: () => void;
@@ -20,11 +21,18 @@ const MOVE_EMOJI: Record<Move, { emoji: string; title: string }> = {
 
 const SHUFFLE_EMOJIS = ['✊', '✋', '✌️'];
 
-export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, onFinishRoomMatch, onBackHome, onOpenTopup }) => {
-  const [activeTab, setActiveTab] = useState<'menu' | 'lobby'>('menu');
+export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, onFinishRoomMatch, onBackHome, onOpenTopup }) => {
+  const [activeTab, setActiveTab] = useState<'menu' | 'lobby'>(initialRoom ? 'lobby' : 'menu');
   const [inputCode, setInputCode] = useState<string>('');
   const [selectedBet, setSelectedBet] = useState<number>(100);
-  const [room, setRoom] = useState<Room | null>(null);
+  const [room, setRoom] = useState<Room | null>(initialRoom || null);
+
+  useEffect(() => {
+    if (initialRoom) {
+      setRoom(initialRoom);
+      setActiveTab('lobby');
+    }
+  }, [initialRoom]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
