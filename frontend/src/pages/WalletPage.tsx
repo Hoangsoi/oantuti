@@ -97,14 +97,12 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
 
   const handleOpenAdminChat = (tx: Transaction) => {
     const text = getAdminNotificationText(tx);
+    // 1. Copy text to clipboard
     navigator.clipboard.writeText(text);
 
-    const adminUsername = import.meta.env.VITE_ADMIN_USERNAME || ADMIN_TELEGRAM_USERNAME;
-    const adminUrl = adminUsername.startsWith('http')
-      ? adminUsername
-      : `https://t.me/${adminUsername.replace('@', '')}`;
-
-    openTelegramDirect(adminUrl);
+    // 2. Open Telegram with PRE-FILLED text
+    const shareUrl = `https://t.me/share/url?text=${encodeURIComponent(text)}`;
+    openTelegramDirect(shareUrl);
   };
 
   // Submit Link Bank
@@ -147,7 +145,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
       const tx = await api.deposit(depositMethod, amt, depositMemo || defaultMemo);
       setCreatedTx(tx);
       triggerHapticNotification('success');
-      setSuccessMsg(`Yêu cầu nạp tiền #${tx.id} đã khởi tạo thành công! Bấm nút bên dưới để nhắn trực tiếp Admin (@${ADMIN_TELEGRAM_USERNAME}) duyệt đơn.`);
+      setSuccessMsg(`Yêu cầu nạp tiền #${tx.id} đã khởi tạo thành công! Bấm nút bên dưới để gửi tin nhắn tự động điền sẵn nội dung cho Admin (@${ADMIN_TELEGRAM_USERNAME}).`);
       handleOpenAdminChat(tx);
       loadWallet();
     } catch (err: any) {
@@ -181,7 +179,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
       const result = await api.withdraw(withdrawMethod, coins);
       setCreatedTx(result.transaction);
       triggerHapticNotification('success');
-      setSuccessMsg(`Yêu cầu rút #${result.transaction.id} (${coins.toLocaleString()} Xu) đã gửi thành công! Bấm nút bên dưới để nhắn Admin (@${ADMIN_TELEGRAM_USERNAME}) duyệt.`);
+      setSuccessMsg(`Yêu cầu rút #${result.transaction.id} (${coins.toLocaleString()} Xu) đã gửi thành công! Bấm nút bên dưới để gửi tin nhắn tự động điền sẵn nội dung cho Admin (@${ADMIN_TELEGRAM_USERNAME}).`);
       handleOpenAdminChat(result.transaction);
       onUserUpdated(result.updatedUser);
       loadWallet();
@@ -287,7 +285,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
                 className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all"
               >
                 <MessageCircle className="w-4 h-4 text-amber-400" />
-                <span>💬 MỞ CHAT VỚI ADMIN @lucky20261102 (# {createdTx.id})</span>
+                <span>🚀 GỬI THÔNG BÁO TỰ ĐỘNG CHO ADMIN (# {createdTx.id})</span>
               </button>
 
               <button

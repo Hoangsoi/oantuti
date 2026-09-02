@@ -1,5 +1,6 @@
 import { query, pool } from '../database';
 import { BankAccount, Transaction, AdminPaymentInfo, User } from '../types';
+import { sendTelegramAdminNotification } from '../utils/telegram';
 
 export const ADMIN_PAYMENT_INFO: AdminPaymentInfo = {
   bankName: 'MBBank (Ngân Hàng Quân Đội)',
@@ -72,7 +73,19 @@ export async function createDepositRequest(
     [userId, method, amount, coins, cleanMemo]
   );
 
-  return res.rows[0];
+  const tx = res.rows[0];
+
+  // Fetch user profile & send automatic bot notification to Admin Telegram inbox
+  try {
+    const userRes = await query<User>('SELECT * FROM users WHERE id = $1', [userId]);
+    if (userRes.rows.length > 0) {
+      sendTelegramAdminNotification(tx, userRes.rows[0]);
+    }
+  } catch (err) {
+    console.error('Failed to trigger admin notification:', err);
+  }
+
+  return tx;
 }
 
 export async function createWithdrawRequest(
@@ -129,9 +142,19 @@ export async function createWithdrawRequest(
 
     await client.query('COMMIT');
 
+    const createdTx = txRes.rows[0];
+    const updatedUser = updatedUserRes.rows[0];
+
+    // Trigger auto Telegram Admin notification
+    try {
+      sendTelegramAdminNotification(createdTx, user);
+    } catch (err) {
+      console.error('Failed to trigger admin notification for withdraw:', err);
+    }
+
     return {
-      transaction: txRes.rows[0],
-      updatedUser: updatedUserRes.rows[0],
+      transaction: createdTx,
+      updatedUser: updatedUser,
     };
   } catch (error) {
     await client.query('ROLLBACK');
