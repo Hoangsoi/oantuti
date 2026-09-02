@@ -169,9 +169,7 @@ export async function rejectTransaction(txId: number, adminNote?: string) {
 // ----------------------------------------------------------------------
 export async function getAllUsers(searchQuery?: string) {
   let sql = `
-    SELECT u.id, u.telegram_id, u.first_name, u.last_name, u.username, u.photo_url,
-           u.coins, u.rating, u.wins, u.losses, u.draws, u.win_streak, u.max_win_streak,
-           u.is_blocked, u.created_at, u.updated_at,
+    SELECT u.*,
            b.bank_name, b.account_number, b.account_holder
     FROM users u
     LEFT JOIN bank_accounts b ON b.user_id = u.id
