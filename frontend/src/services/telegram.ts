@@ -82,3 +82,12 @@ export function shareTelegramLink(url: string, text: string) {
     window.open(shareUrl, '_blank');
   }
 }
+
+export function openTelegramDirect(url: string) {
+  const tg = getTelegramWebApp();
+  if (tg && typeof tg.openTelegramLink === 'function') {
+    tg.openTelegramLink(url);
+  } else {
+    window.open(url, '_blank');
+  }
+}

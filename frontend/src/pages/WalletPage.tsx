@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { User, WalletData, Transaction } from '../types';
 import { api } from '../services/api';
-import { shareTelegramLink, triggerHapticImpact, triggerHapticNotification } from '../services/telegram';
-import { Copy, Check, Wallet as WalletIcon, Building, Send } from 'lucide-react';
+import { openTelegramDirect, triggerHapticImpact, triggerHapticNotification } from '../services/telegram';
+import { Copy, Check, Wallet as WalletIcon, Building, MessageCircle } from 'lucide-react';
 
 interface WalletPageProps {
   currentUser: User | null;
@@ -80,7 +80,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  const handleNotifyAdmin = (tx: Transaction) => {
+  const getAdminNotificationText = (tx: Transaction) => {
     const isDeposit = tx.type === 'deposit';
 
     let bankDetailText = '';
@@ -90,12 +90,23 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
       bankDetailText = 'Ví USDT TRC20';
     }
 
-    const text = isDeposit
+    return isDeposit
       ? `💬 BÁO DUYỆT ĐƠN NẠP XU (ADMIN ID: ${ADMIN_TELEGRAM_ID})\n-----------------------\n🔑 Mã đơn: #${tx.id}\n👤 Khách hàng: ${currentUser?.first_name} (ID: ${currentUser?.id})\n💰 Số tiền: ${Number(tx.amount).toLocaleString()} ${tx.payment_method === 'usdt' ? 'USDT' : 'VNĐ'}\n🪙 Quy đổi: +${tx.coins.toLocaleString()} Xu\n👉 Vui lòng kiểm tra và duyệt Xu giúp tôi!`
       : `💬 BÁO YÊU CẦU RÚT TIỀN (ADMIN ID: ${ADMIN_TELEGRAM_ID})\n-----------------------\n🔑 Mã đơn rút: #${tx.id}\n👤 Khách hàng: ${currentUser?.first_name} (ID: ${currentUser?.id})\n🏦 Nơi nhận: ${bankDetailText}\n🪙 Số Xu rút: -${tx.coins.toLocaleString()} Xu\n💵 Số tiền thực nhận: ${Number(tx.amount).toLocaleString()} ${tx.payment_method === 'usdt' ? 'USDT' : 'VNĐ'}\n👉 Vui lòng kiểm tra và chuyển tiền giúp tôi!`;
+  };
 
-    const adminLink = `https://t.me/id${ADMIN_TELEGRAM_ID}`;
-    shareTelegramLink(adminLink, text);
+  const handleOpenAdminChat = (tx: Transaction) => {
+    const text = getAdminNotificationText(tx);
+    navigator.clipboard.writeText(text);
+
+    const adminUsername = import.meta.env.VITE_ADMIN_USERNAME || import.meta.env.VITE_BOT_USERNAME || 'OanTuTiBot';
+    const adminUrl = adminUsername.startsWith('http')
+      ? adminUsername
+      : adminUsername.startsWith('id')
+      ? `https://t.me/${adminUsername}`
+      : `https://t.me/${adminUsername}`;
+
+    openTelegramDirect(adminUrl);
   };
 
   // Submit Link Bank
@@ -138,8 +149,8 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
       const tx = await api.deposit(depositMethod, amt, depositMemo || defaultMemo);
       setCreatedTx(tx);
       triggerHapticNotification('success');
-      setSuccessMsg(`Yêu cầu nạp tiền #${tx.id} đã khởi tạo thành công! Vui lòng gửi tin nhắn báo Admin (ID: ${ADMIN_TELEGRAM_ID}) duyệt đơn.`);
-      handleNotifyAdmin(tx);
+      setSuccessMsg(`Yêu cầu nạp tiền #${tx.id} đã khởi tạo thành công! Bấm nút bên dưới để nhắn trực tiếp Admin duyệt đơn.`);
+      handleOpenAdminChat(tx);
       loadWallet();
     } catch (err: any) {
       triggerHapticNotification('error');
@@ -172,8 +183,8 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
       const result = await api.withdraw(withdrawMethod, coins);
       setCreatedTx(result.transaction);
       triggerHapticNotification('success');
-      setSuccessMsg(`Yêu cầu rút #${result.transaction.id} (${coins.toLocaleString()} Xu) đã gửi thành công! Vui lòng gửi tin nhắn báo Admin (ID: ${ADMIN_TELEGRAM_ID}) duyệt chuyển tiền.`);
-      handleNotifyAdmin(result.transaction);
+      setSuccessMsg(`Yêu cầu rút #${result.transaction.id} (${coins.toLocaleString()} Xu) đã gửi thành công! Bấm nút bên dưới để nhắn Admin duyệt.`);
+      handleOpenAdminChat(result.transaction);
       onUserUpdated(result.updatedUser);
       loadWallet();
     } catch (err: any) {
@@ -272,13 +283,23 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
         <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold rounded-xl text-center space-y-3">
           <div>{successMsg}</div>
           {createdTx && (
-            <button
-              onClick={() => handleNotifyAdmin(createdTx)}
-              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all"
-            >
-              <Send className="w-4 h-4" />
-              <span>{createdTx.type === 'deposit' ? `BÁO ADMIN DUYỆT ĐƠN NẠP (#${createdTx.id}) 💬` : `BÁO ADMIN DUYỆT CHUYỂN TIỀN RÚT (#${createdTx.id}) 💬`}</span>
-            </button>
+            <div className="space-y-2 pt-1">
+              <button
+                onClick={() => handleOpenAdminChat(createdTx)}
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all"
+              >
+                <MessageCircle className="w-4 h-4 text-amber-400" />
+                <span>💬 MỞ CHAT VỚI ADMIN BÁO DUYỆT (# {createdTx.id})</span>
+              </button>
+
+              <button
+                onClick={() => handleCopy(getAdminNotificationText(createdTx), 'admin_msg')}
+                className="w-full py-2 px-3 rounded-xl bg-slate-800 text-slate-300 text-[11px] font-bold border border-slate-700 flex items-center justify-center gap-1.5 active:scale-95"
+              >
+                {copiedKey === 'admin_msg' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedKey === 'admin_msg' ? 'Đã sao chép tin nhắn Báo Admin' : 'Sao chép nội dung gửi Admin'}</span>
+              </button>
+            </div>
           )}
         </div>
       )}
