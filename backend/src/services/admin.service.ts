@@ -299,15 +299,35 @@ export async function getGameStats() {
 // PAYMENT CONFIG MANAGEMENT APIs
 // ----------------------------------------------------------------------
 export async function getPaymentConfig() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS system_settings (
+      key VARCHAR(64) PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )
+  `);
+
+  const rows = await query<{ key: string; value: string }>('SELECT key, value FROM system_settings');
+  const settingsMap: Record<string, string> = {};
+  rows.rows.forEach(r => { settingsMap[r.key] = r.value; });
+
+  const adminTelegramUsername = settingsMap['admin_telegram_username'] || process.env.ADMIN_TELEGRAM_USERNAME || 'ottadmin2026';
+  const bankName = settingsMap['bank_name'] || process.env.ADMIN_BANK_NAME || 'MBBank (Ngân Hàng Quân Đội)';
+  const accountNumber = settingsMap['account_number'] || process.env.ADMIN_BANK_ACCOUNT || '999988889999';
+  const accountHolder = settingsMap['account_holder'] || process.env.ADMIN_BANK_HOLDER || 'OAN TU TI OFFICIAL';
+  const usdtAddress = settingsMap['usdt_address'] || process.env.ADMIN_USDT_ADDRESS || 'T9yD14Nj9j7xQvL894K1mP5xZ7W8qM3v';
+  const qrCodeUrl = settingsMap['qr_code_url'] || process.env.ADMIN_QR_CODE_URL || '';
+  const botWinRate = settingsMap['bot_win_rate'] ? parseInt(settingsMap['bot_win_rate'], 10) : parseInt(process.env.BOT_WIN_RATE || '70', 10);
+
   return {
     adminTelegramId: process.env.ADMIN_TELEGRAM_ID || '8780377211',
-    adminTelegramUsername: process.env.ADMIN_TELEGRAM_USERNAME || 'ottadmin2026',
-    bankName: process.env.ADMIN_BANK_NAME || 'MBBank (Ngân Hàng Quân Đội)',
-    accountNumber: process.env.ADMIN_BANK_ACCOUNT || '999988889999',
-    accountHolder: process.env.ADMIN_BANK_HOLDER || 'OAN TU TI OFFICIAL',
-    usdtAddress: process.env.ADMIN_USDT_ADDRESS || 'T9yD14Nj9j7xQvL894K1mP5xZ7W8qM3v',
-    qrCodeUrl: process.env.ADMIN_QR_CODE_URL || '',
-    botWinRate: parseInt(process.env.BOT_WIN_RATE || '70', 10),
+    adminTelegramUsername,
+    bankName,
+    accountNumber,
+    accountHolder,
+    usdtAddress,
+    qrCodeUrl,
+    botWinRate,
   };
 }
 
@@ -320,13 +340,28 @@ export async function updatePaymentConfig(data: {
   qrCodeUrl?: string;
   botWinRate?: number;
 }) {
-  if (data.bankName !== undefined) process.env.ADMIN_BANK_NAME = data.bankName;
-  if (data.accountNumber !== undefined) process.env.ADMIN_BANK_ACCOUNT = data.accountNumber;
-  if (data.accountHolder !== undefined) process.env.ADMIN_BANK_HOLDER = data.accountHolder;
-  if (data.usdtAddress !== undefined) process.env.ADMIN_USDT_ADDRESS = data.usdtAddress;
+  await query(`
+    CREATE TABLE IF NOT EXISTS system_settings (
+      key VARCHAR(64) PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )
+  `);
+
+  const upsertSetting = async (key: string, value: string) => {
+    await query(
+      `INSERT INTO system_settings (key, value, updated_at)
+       VALUES ($1, $2, CURRENT_TIMESTAMP)
+       ON CONFLICT (key) DO UPDATE
+       SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP`,
+      [key, value]
+    );
+  };
+
   if (data.adminTelegramUsername !== undefined) {
     const cleanUsername = data.adminTelegramUsername.replace('@', '').trim();
     process.env.ADMIN_TELEGRAM_USERNAME = cleanUsername;
+    await upsertSetting('admin_telegram_username', cleanUsername);
 
     const adminTgId = parseInt(process.env.ADMIN_TELEGRAM_ID || '8780377211', 10);
     try {
@@ -336,8 +371,31 @@ export async function updatePaymentConfig(data: {
       );
     } catch (e) {}
   }
-  if (data.qrCodeUrl !== undefined) process.env.ADMIN_QR_CODE_URL = data.qrCodeUrl;
-  if (data.botWinRate !== undefined) process.env.BOT_WIN_RATE = String(data.botWinRate);
+
+  if (data.bankName !== undefined) {
+    process.env.ADMIN_BANK_NAME = data.bankName;
+    await upsertSetting('bank_name', data.bankName);
+  }
+  if (data.accountNumber !== undefined) {
+    process.env.ADMIN_BANK_ACCOUNT = data.accountNumber;
+    await upsertSetting('account_number', data.accountNumber);
+  }
+  if (data.accountHolder !== undefined) {
+    process.env.ADMIN_BANK_HOLDER = data.accountHolder;
+    await upsertSetting('account_holder', data.accountHolder);
+  }
+  if (data.usdtAddress !== undefined) {
+    process.env.ADMIN_USDT_ADDRESS = data.usdtAddress;
+    await upsertSetting('usdt_address', data.usdtAddress);
+  }
+  if (data.qrCodeUrl !== undefined) {
+    process.env.ADMIN_QR_CODE_URL = data.qrCodeUrl;
+    await upsertSetting('qr_code_url', data.qrCodeUrl);
+  }
+  if (data.botWinRate !== undefined) {
+    process.env.BOT_WIN_RATE = String(data.botWinRate);
+    await upsertSetting('bot_win_rate', String(data.botWinRate));
+  }
 
   return getPaymentConfig();
 }

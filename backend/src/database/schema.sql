@@ -91,6 +91,12 @@ CREATE TABLE IF NOT EXISTS transactions (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS system_settings (
+    key VARCHAR(64) PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_users_rating ON users (rating DESC, wins DESC);
 CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users (telegram_id);
