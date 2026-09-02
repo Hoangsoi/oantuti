@@ -279,7 +279,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
                 type="text"
                 value={adminUsername}
                 onChange={(e) => setAdminUsername(e.target.value)}
-                placeholder="Nhập tài khoản (VD: admin)"
+                placeholder="Nhập tài khoản Admin..."
                 className="bg-slate-950 border border-slate-700 text-white font-bold p-3 rounded-xl w-full focus:outline-none focus:border-purple-500"
                 required
               />
@@ -291,7 +291,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
                 type="password"
                 value={adminPassword}
                 onChange={(e) => setAdminPassword(e.target.value)}
-                placeholder="Nhập mật khẩu (VD: Admin123@)"
+                placeholder="Nhập mật khẩu Admin..."
                 className="bg-slate-950 border border-slate-700 text-amber-400 font-black p-3 rounded-xl w-full focus:outline-none focus:border-purple-500"
                 required
               />
