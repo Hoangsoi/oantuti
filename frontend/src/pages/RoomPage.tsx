@@ -103,6 +103,21 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
     return () => clearInterval(interval);
   }, [room, activeTab, isRevealing]);
 
+  // Reset local move selection state when room returns to 'ready' status for a new round
+  useEffect(() => {
+    if (!room || !currentUser) return;
+    const isHostUser = Number(room.host_id) === Number(currentUser.id);
+    const hasMyLocked = isHostUser ? room.has_host_locked : room.has_guest_locked;
+
+    if (room.status === 'ready' && !hasMyLocked) {
+      setMySelectedMove(null);
+      setIsRevealing(false);
+      try {
+        localStorage.removeItem(`room_move_${room.room_code}`);
+      } catch (e) {}
+    }
+  }, [room?.status, room?.has_host_locked, room?.has_guest_locked, currentUser?.id]);
+
   // 2. Opponent Emoji Shuffling Animation during 10s Reveal
   useEffect(() => {
     if (!isRevealing) return;

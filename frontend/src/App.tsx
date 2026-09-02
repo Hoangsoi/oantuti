@@ -169,8 +169,14 @@ export const App: React.FC = () => {
         return (
           <ResultPage
             match={currentMatch}
-            onPlayAgain={() => {
+            onPlayAgain={async () => {
               if (currentMatch?.opponent_type === 'pvp') {
+                if (currentRoom) {
+                  try {
+                    const reset = await api.resetRoom(currentRoom.room_code);
+                    setCurrentRoom(reset);
+                  } catch (e) {}
+                }
                 navigateTo('room');
               } else {
                 navigateTo('game');

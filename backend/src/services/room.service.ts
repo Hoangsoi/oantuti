@@ -452,7 +452,7 @@ export async function resetRoom(userId: number, roomCode: string): Promise<Room>
   if (roomRes.rows.length === 0) throw new Error('Phòng không tồn tại');
   const room = roomRes.rows[0];
 
-  if (room.host_id !== userId && room.guest_id !== userId) {
+  if (Number(room.host_id) !== Number(userId) && Number(room.guest_id) !== Number(userId)) {
     throw new Error('Bạn không có quyền thao tác trên phòng này');
   }
 
