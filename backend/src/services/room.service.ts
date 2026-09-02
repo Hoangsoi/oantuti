@@ -42,16 +42,30 @@ async function getOrCreateBotUser(profile: typeof VIRTUAL_BOT_PROFILES[0]): Prom
 
 export async function ensureVirtualRooms(): Promise<void> {
   try {
-    const waitingRes = await query('SELECT COUNT(*) as count FROM rooms WHERE status = $1 AND is_bot_room = true', ['waiting']);
-    const count = parseInt(waitingRes.rows[0]?.count || '0', 10);
+    // Get currently active bot host_ids in waiting rooms
+    const activeBotHostsRes = await query<{ host_id: number }>(
+      "SELECT host_id FROM rooms WHERE status = 'waiting' AND is_bot_room = true"
+    );
+    const activeBotHostIds = new Set(activeBotHostsRes.rows.map((r) => r.host_id));
 
-    const TARGET_BOT_ROOMS = 6;
-    if (count < TARGET_BOT_ROOMS) {
-      const needed = TARGET_BOT_ROOMS - count;
-      for (let i = 0; i < needed; i++) {
-        const profile = VIRTUAL_BOT_PROFILES[Math.floor(Math.random() * VIRTUAL_BOT_PROFILES.length)];
-        const botUser = await getOrCreateBotUser(profile);
+    // Filter available bot profiles whose botUser.id is NOT currently active
+    const availableProfiles = [];
+    for (const profile of VIRTUAL_BOT_PROFILES) {
+      const botUser = await getOrCreateBotUser(profile);
+      if (!activeBotHostIds.has(botUser.id)) {
+        availableProfiles.push({ profile, botUser });
+      }
+    }
 
+    const currentCount = activeBotHostIds.size;
+    const TARGET_BOT_ROOMS = Math.min(6, VIRTUAL_BOT_PROFILES.length);
+
+    if (currentCount < TARGET_BOT_ROOMS && availableProfiles.length > 0) {
+      const needed = TARGET_BOT_ROOMS - currentCount;
+      const shuffled = availableProfiles.sort(() => Math.random() - 0.5);
+
+      for (let i = 0; i < Math.min(needed, shuffled.length); i++) {
+        const { profile, botUser } = shuffled[i];
         const betAmount = BET_TIERS[Math.floor(Math.random() * BET_TIERS.length)];
         let roomCode = generateRoomCode();
         const roomName = `Phòng của ${profile.name}`;
@@ -91,6 +105,17 @@ export async function createRoom(
   password?: string
 ): Promise<Room> {
   const safeBet = Math.max(0, Math.floor(betAmount));
+
+  // Check if player already has an open active waiting or ready room
+  const existingActive = await query<Room>(
+    "SELECT room_code FROM rooms WHERE host_id = $1 AND status IN ('waiting', 'ready')",
+    [hostId]
+  );
+  if (existingActive.rows.length > 0) {
+    throw new Error(
+      `Bạn đã có 1 phòng đấu đang chờ (#${existingActive.rows[0].room_code}). Vui lòng hoàn thành hoặc rời phòng cũ trước khi tạo phòng mới!`
+    );
+  }
 
   const userRes = await query<User>('SELECT first_name, coins FROM users WHERE id = $1', [hostId]);
   if (userRes.rows.length === 0) throw new Error('Người dùng không tồn tại');
