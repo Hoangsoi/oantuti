@@ -277,7 +277,7 @@ export async function getGameStats() {
     SELECT COALESCE(SUM(fee_amount), 0) as total_rake_collected,
            COUNT(*) as total_rooms_played
     FROM rooms
-    WHERE status = 'finished'
+    WHERE status = 'completed'
   `);
 
   const recentMatches = await query(`
