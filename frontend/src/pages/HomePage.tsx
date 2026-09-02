@@ -43,10 +43,10 @@ export const HomePage: React.FC<HomePageProps> = ({ user, onNavigate }) => {
         <div className="w-full max-w-xs space-y-3 my-4">
           <button
             onClick={() => onNavigate('game')}
-            className="w-full py-4 px-6 btn-game-primary text-xl shadow-amber-500/50 shadow-xl group"
+            className="w-full py-4 px-6 btn-game-primary text-xl shadow-amber-500/50 shadow-xl group flex items-center justify-center"
           >
             <Gamepad2 className="w-7 h-7 mr-3 group-hover:scale-110 transition-transform" />
-            <span>🎮 CHƠI VỚI MÁY</span>
+            <span>🎮 CHƠI NGAY</span>
           </button>
 
           <button
