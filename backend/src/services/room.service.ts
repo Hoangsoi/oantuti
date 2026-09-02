@@ -106,16 +106,22 @@ export async function createRoom(
 ): Promise<Room> {
   const safeBet = Math.max(0, Math.floor(betAmount));
 
-  // Check if player already has an open active waiting or ready room
+  // If player is in an active match in progress ('ready'), prevent creating new room until match ends
   const existingActive = await query<Room>(
-    "SELECT room_code FROM rooms WHERE host_id = $1 AND status IN ('waiting', 'ready')",
+    "SELECT room_code FROM rooms WHERE host_id = $1 AND status = 'ready'",
     [hostId]
   );
   if (existingActive.rows.length > 0) {
     throw new Error(
-      `Bạn đã có 1 phòng đấu đang chờ (#${existingActive.rows[0].room_code}). Vui lòng hoàn thành hoặc rời phòng cũ trước khi tạo phòng mới!`
+      `Bạn đang có 1 trận đấu đang diễn ra (#${existingActive.rows[0].room_code}). Vui lòng hoàn thành ván đấu trước khi tạo phòng mới!`
     );
   }
+
+  // Auto-expire any unjoined waiting rooms hosted by this user
+  await query(
+    "UPDATE rooms SET status = 'expired', updated_at = CURRENT_TIMESTAMP WHERE host_id = $1 AND status = 'waiting'",
+    [hostId]
+  );
 
   const userRes = await query<User>('SELECT first_name, coins FROM users WHERE id = $1', [hostId]);
   if (userRes.rows.length === 0) throw new Error('Người dùng không tồn tại');

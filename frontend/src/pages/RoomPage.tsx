@@ -423,13 +423,25 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
   const houseFee = Math.floor(betAmt * 0.05);
   const winnerNetGain = betAmt - houseFee;
 
+  const handleExitRoom = async () => {
+    if (room) {
+      try {
+        await api.leaveRoom(room.room_code);
+      } catch (err) {
+        // ignore
+      }
+      setRoom(null);
+    }
+    setActiveTab('menu');
+  };
+
   return (
     <div className="flex flex-col min-h-screen px-4 py-6 max-w-md mx-auto justify-between pb-24">
       {/* Top Bar */}
       <div className="flex items-center justify-between">
         <button
-          onClick={() => setActiveTab('menu')}
-          className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold border border-slate-700"
+          onClick={handleExitRoom}
+          className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold border border-slate-700 hover:bg-slate-700"
         >
           ← RỜI PHÒNG
         </button>

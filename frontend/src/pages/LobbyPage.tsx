@@ -89,6 +89,19 @@ export const LobbyPage: React.FC<LobbyPageProps> = ({
     }
   };
 
+  const handleCancelMyRoom = async (roomCode: string) => {
+    setJoiningCode(roomCode);
+    triggerHapticImpact('medium');
+    try {
+      await api.leaveRoom(roomCode);
+      fetchRooms();
+    } catch (err) {
+      // ignore
+    } finally {
+      setJoiningCode(null);
+    }
+  };
+
   const filteredRooms = rooms.filter((r) => {
     if (filterTier === 'free') return r.bet_amount === 0;
     if (filterTier === '5k') return r.bet_amount === 5000;
@@ -278,6 +291,18 @@ export const LobbyPage: React.FC<LobbyPageProps> = ({
                       </div>
 
                       <div className="flex items-center gap-1.5">
+                        {isMyRoom && (
+                          <button
+                            onClick={() => handleCancelMyRoom(room.room_code)}
+                            disabled={joiningCode === room.room_code}
+                            className="px-2 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/40 text-xs font-bold flex items-center gap-1 active:scale-95 transition-all"
+                            title="HỦY PHÒNG ĐẤU NÀY"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            <span className="text-[10px]">Hủy</span>
+                          </button>
+                        )}
+
                         {!room.has_password && !isMyRoom && (
                           <button
                             onClick={() => handleSpectate(room.room_code)}
