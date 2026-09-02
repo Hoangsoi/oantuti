@@ -150,8 +150,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
       const tx = await api.deposit(depositMethod, amt, depositMemo || defaultMemo);
       setCreatedTx(tx);
       triggerHapticNotification('success');
-      setSuccessMsg(`Yêu cầu nạp tiền #${tx.id} đã khởi tạo thành công! Vui lòng chọn cách nhắn cho Admin (@${ADMIN_TELEGRAM_USERNAME}) bên dưới.`);
-      handleOpenDirectAdminChat(tx);
+      setSuccessMsg(`Yêu cầu nạp tiền #${tx.id} đã khởi tạo thành công!`);
       loadWallet();
     } catch (err: any) {
       triggerHapticNotification('error');
@@ -184,8 +183,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
       const result = await api.withdraw(withdrawMethod, coins);
       setCreatedTx(result.transaction);
       triggerHapticNotification('success');
-      setSuccessMsg(`Yêu cầu rút #${result.transaction.id} (${coins.toLocaleString()} Xu) đã gửi thành công! Vui lòng chọn cách nhắn cho Admin (@${ADMIN_TELEGRAM_USERNAME}) bên dưới.`);
-      handleOpenDirectAdminChat(result.transaction);
+      setSuccessMsg(`Yêu cầu rút #${result.transaction.id} (${coins.toLocaleString()} Xu) đã gửi thành công!`);
       onUserUpdated(result.updatedUser);
       loadWallet();
     } catch (err: any) {
@@ -282,35 +280,31 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
 
       {successMsg && (
         <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold rounded-xl text-center space-y-3">
-          <div>{successMsg}</div>
+          <div className="text-sm font-black text-emerald-300">{successMsg}</div>
           {createdTx && (
-            <div className="space-y-2 pt-1">
+            <div className="space-y-2 pt-1 bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+              <button
+                onClick={() => handleCopy(getAdminNotificationText(createdTx), 'admin_msg')}
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all"
+              >
+                {copiedKey === 'admin_msg' ? <Check className="w-4 h-4 text-emerald-950" /> : <Copy className="w-4 h-4" />}
+                <span>{copiedKey === 'admin_msg' ? 'ĐÃ SAO CHÉP MÃ ĐƠN (# ' + createdTx.id + ') ✓' : '📋 SAO CHÉP MÃ ĐƠN (# ' + createdTx.id + ')'}</span>
+              </button>
+
               <button
                 onClick={() => handleOpenDirectAdminChat(createdTx)}
                 className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all"
               >
                 <MessageCircle className="w-4 h-4 text-amber-400" />
-                <span>💬 MỞ CHAT TRỰC TIẾP ADMIN @ottadmin2026 (# {createdTx.id})</span>
+                <span>💬 MỞ CHAT TRỰC TIẾP ADMIN @ottadmin2026</span>
               </button>
 
               <button
                 onClick={() => handleSendShareWithPrefilledText(createdTx)}
-                className="w-full py-2.5 px-3 rounded-xl bg-slate-800 text-amber-300 font-extrabold text-xs border border-slate-700 flex items-center justify-center gap-1.5 active:scale-95"
+                className="w-full py-2 px-3 rounded-xl bg-slate-800 text-amber-300 font-extrabold text-[11px] border border-slate-700 flex items-center justify-center gap-1.5 active:scale-95"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>📤 HOẶC GỬI DẠNG CHIA SẺ KÈM NỘI DUNG MẪU</span>
-              </button>
-
-              <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-[11px] text-amber-300 font-semibold text-center">
-                💡 <strong>Mẹo gửi nhanh:</strong> Mã đơn <strong>#{createdTx.id}</strong> đã tự động được Copy. Khi cửa sở chat Admin mở ra, bạn chỉ cần nhấn nút <strong>Dán (Paste)</strong> vào ô nhập tin nhắn ➔ Bấm <strong>Gửi</strong>!
-              </div>
-
-              <button
-                onClick={() => handleCopy(getAdminNotificationText(createdTx), 'admin_msg')}
-                className="w-full py-2 px-3 rounded-xl bg-slate-900 text-slate-300 font-extrabold text-[11px] border border-slate-800 flex items-center justify-center gap-1.5 active:scale-95"
-              >
-                {copiedKey === 'admin_msg' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedKey === 'admin_msg' ? 'ĐÃ SAO CHÉP NỘI DUNG ĐƠN' : 'SAO CHÉP LẠI NỘI DUNG ĐƠN HÀNG'}</span>
+                <span>📤 HOẶC GỬI DẠNG CHIA SẺ MẪU</span>
               </button>
             </div>
           )}
