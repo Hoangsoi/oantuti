@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ReferralStat } from '../types';
 import { api } from '../services/api';
 import { shareTelegramLink } from '../services/telegram';
-import { Users, Share2, Copy, Check, Network } from 'lucide-react';
+import { Users, Share2, Copy, Check, Network, Coins } from 'lucide-react';
 
 export const ReferralPage: React.FC = () => {
   const [stat, setStat] = useState<ReferralStat | null>(null);
@@ -35,6 +35,15 @@ export const ReferralPage: React.FC = () => {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const tiersData =
+    stat?.tiers || [
+      { level: 1, ratePercent: '1.0%', count: 0, commissionCoins: 0 },
+      { level: 2, ratePercent: '0.4%', count: 0, commissionCoins: 0 },
+      { level: 3, ratePercent: '0.3%', count: 0, commissionCoins: 0 },
+      { level: 4, ratePercent: '0.2%', count: 0, commissionCoins: 0 },
+      { level: 5, ratePercent: '0.1%', count: 0, commissionCoins: 0 },
+    ];
 
   return (
     <div className="flex flex-col min-h-screen px-4 py-6 max-w-md mx-auto pb-24 space-y-4">
@@ -87,39 +96,72 @@ export const ReferralPage: React.FC = () => {
         <div className="flex items-center justify-between border-b border-slate-800 pb-2">
           <div className="flex items-center gap-1.5 text-xs font-black text-amber-400 uppercase tracking-wider">
             <Network className="w-4 h-4 text-amber-400" />
-            <span>HOA HỒNG GIỚI THIỆU</span>
+            <span>THỐNG KÊ HOA HỒNG 5 CẤP (TỔNG 2.0%)</span>
           </div>
         </div>
 
-        {/* 5 Tiers Grid */}
-        <div className="space-y-1.5">
-          <div className="text-xs font-black text-slate-300 uppercase">Cơ cấu hoa hồng 5 cấp (Tổng 2.0%):</div>
-          <div className="grid grid-cols-5 gap-1 text-center">
-            {(
-              stat?.tiers || [
-                { level: 1, ratePercent: '1.0%', count: 0, commissionCoins: 0 },
-                { level: 2, ratePercent: '0.4%', count: 0, commissionCoins: 0 },
-                { level: 3, ratePercent: '0.3%', count: 0, commissionCoins: 0 },
-                { level: 4, ratePercent: '0.2%', count: 0, commissionCoins: 0 },
-                { level: 5, ratePercent: '0.1%', count: 0, commissionCoins: 0 },
-              ]
-            ).map((t) => (
-              <div
-                key={t.level}
-                className={`p-2 rounded-xl border flex flex-col items-center justify-between transition-all ${
-                  t.level === 1
-                    ? 'bg-amber-500/20 border-amber-400 text-amber-300'
-                    : 'bg-slate-950 border-slate-800 text-slate-300'
-                }`}
-              >
-                <div className="text-[10px] font-black uppercase text-amber-400">F{t.level}</div>
-                <div className="text-xs font-black text-white">{t.ratePercent}</div>
-                <div className="text-[9px] text-slate-400 font-semibold mt-1">
-                  {t.commissionCoins ? `+${t.commissionCoins}` : `${t.count} ref`}
+        {/* 5 Tiers Quick Summary Grid */}
+        <div className="grid grid-cols-5 gap-1.5 text-center">
+          {tiersData.map((t) => (
+            <div
+              key={t.level}
+              className={`p-2 rounded-xl border flex flex-col items-center justify-between transition-all ${
+                t.level === 1
+                  ? 'bg-amber-500/20 border-amber-400/80 text-amber-300'
+                  : 'bg-slate-950 border-slate-800 text-slate-300'
+              }`}
+            >
+              <div className="text-[10px] font-black uppercase text-amber-400">F{t.level}</div>
+              <div className="text-xs font-black text-white">{t.ratePercent}</div>
+              <div className="text-[9px] text-slate-400 font-bold mt-1">
+                {t.count} ref
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Detailed 5-Tier Itemized Table */}
+        <div className="pt-2 space-y-2 border-t border-slate-800">
+          <div className="text-xs font-black text-slate-300 uppercase tracking-wider mb-1">
+            Chi tiết số lượng & hoa hồng từng F:
+          </div>
+
+          {tiersData.map((t) => (
+            <div
+              key={`detail-${t.level}`}
+              className="flex items-center justify-between p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 hover:border-amber-500/30 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-9 h-9 rounded-xl border flex items-center justify-center font-black text-xs ${
+                  t.level === 1 ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-slate-900 border-slate-800 text-slate-300'
+                }`}>
+                  F{t.level}
+                </div>
+                <div>
+                  <div className="text-xs font-black text-white flex items-center gap-1.5">
+                    <span>Cấp F{t.level}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-300 font-bold border border-amber-500/20">
+                      Tỷ lệ {t.ratePercent}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-400 font-bold flex items-center gap-1 mt-0.5">
+                    <Users className="w-3 h-3 text-slate-500" />
+                    <span>{t.count.toLocaleString()} người chơi</span>
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
+
+              <div className="text-right">
+                <div className="text-xs font-black text-emerald-400 flex items-center justify-end gap-1">
+                  <Coins className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>+{t.commissionCoins.toLocaleString()} Xu</span>
+                </div>
+                <div className="text-[9px] text-slate-500 font-semibold mt-0.5">
+                  Hoa hồng nhận được
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -160,7 +202,7 @@ export const ReferralPage: React.FC = () => {
       {/* Invited Friends List */}
       <div className="space-y-2">
         <h3 className="text-sm font-black text-slate-300 uppercase tracking-wider">
-          Danh sách bạn bè F1 ({stat?.referredUsers.length || 0})
+          Danh sách bạn bè F1 trực tiếp ({stat?.referredUsers.length || 0})
         </h3>
 
         {loading ? (

@@ -24,32 +24,55 @@ export async function getUserReferrals(user: User): Promise<ReferralStat> {
     [user.id]
   );
 
+  // 5-Tier Friends Count via Recursive CTE
+  const tierCountRes = await query<{ level: number; friend_count: string }>(
+    `WITH RECURSIVE ref_tree AS (
+       SELECT id, referred_by, 1 AS level
+       FROM users
+       WHERE referred_by = $1
+
+       UNION ALL
+
+       SELECT u.id, u.referred_by, rt.level + 1
+       FROM users u
+       JOIN ref_tree rt ON u.referred_by = rt.id
+       WHERE rt.level < 5
+     )
+     SELECT level, COUNT(id) AS friend_count
+     FROM ref_tree
+     GROUP BY level`,
+    [user.id]
+  );
+
+  const tierCountMap = new Map<number, number>();
+  tierCountRes.rows.forEach((r) => {
+    tierCountMap.set(Number(r.level), parseInt(r.friend_count || '0', 10));
+  });
+
   // Query commissions per tier
-  const commRes = await query<{ level: number; total_amount: string; ref_count: string }>(
-    `SELECT level, COALESCE(SUM(amount), 0) as total_amount, COUNT(DISTINCT referred_id) as ref_count
+  const commRes = await query<{ level: number; total_amount: string }>(
+    `SELECT level, COALESCE(SUM(amount), 0) as total_amount
      FROM referral_commissions
      WHERE referrer_id = $1
      GROUP BY level`,
     [user.id]
   );
 
-  const commMap = new Map<number, { amount: number; count: number }>();
+  const commMap = new Map<number, number>();
   commRes.rows.forEach((r) => {
-    commMap.set(r.level, {
-      amount: parseInt(r.total_amount || '0', 10),
-      count: parseInt(r.ref_count || '0', 10),
-    });
+    commMap.set(Number(r.level), parseInt(r.total_amount || '0', 10));
   });
 
   let totalCommissions = 0;
   const tiers: ReferralTierStat[] = TIER_RATES.map((t) => {
-    const tierData = commMap.get(t.level) || { amount: 0, count: t.level === 1 ? referredUsersRes.rows.length : 0 };
-    totalCommissions += tierData.amount;
+    const friendCount = tierCountMap.get(t.level) || 0;
+    const commissionCoins = commMap.get(t.level) || 0;
+    totalCommissions += commissionCoins;
     return {
       level: t.level,
-      count: tierData.count,
+      count: friendCount,
       ratePercent: t.rate,
-      commissionCoins: tierData.amount,
+      commissionCoins: commissionCoins,
     };
   });
 
