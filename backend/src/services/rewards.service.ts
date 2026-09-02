@@ -5,8 +5,9 @@ const TASKS_DEF = [
   {
     id: 'daily_login',
     title: 'Đăng nhập mỗi ngày',
-    description: 'Vào game mỗi ngày nhận thưởng',
+    description: 'Vào game mỗi ngày nhận +5.000 Xu Game',
     rewardPoints: 50,
+    rewardCoins: 5000,
     requiredCount: 1,
   },
   {
@@ -83,6 +84,7 @@ export async function getUserRewards(userId: number): Promise<DailyRewardTask[]>
       title: task.title,
       description: task.description,
       rewardPoints: task.rewardPoints,
+      rewardCoins: (task as any).rewardCoins,
       isClaimed,
       isCompleted,
       progressText,
@@ -124,13 +126,15 @@ export async function claimReward(userId: number, rewardType: string): Promise<{
       [userId, todayStr, rewardType]
     );
 
-    // Add points to user rating
-    const userRes = await client.query<User>(
+    const rewardCoins = (taskDef as any).rewardCoins || 0;
+
+    // Add points to user rating and coins to balance
+    const userRes = await client.query(
       `UPDATE users
-       SET rating = rating + $1, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2
+       SET rating = rating + $1, coins = coins + $2, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $3
        RETURNING *`,
-      [taskDef.rewardPoints, userId]
+      [taskDef.rewardPoints, rewardCoins, userId]
     );
 
     await client.query('COMMIT');

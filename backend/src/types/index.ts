@@ -147,6 +147,7 @@ export interface DailyRewardTask {
   title: string;
   description: string;
   rewardPoints: number;
+  rewardCoins?: number;
   isClaimed: boolean;
   isCompleted: boolean;
   progressText?: string;

@@ -219,9 +219,16 @@ export const RewardsPage: React.FC<RewardsPageProps> = ({ onRewardClaimed }) => 
                   )}
                 </div>
                 <p className="text-xs text-slate-400 font-semibold">{task.description}</p>
-                <div className="flex items-center gap-1 text-xs font-black text-amber-400 pt-1">
-                  <Trophy className="w-3.5 h-3.5" />
-                  <span>+{task.rewardPoints} điểm</span>
+                <div className="flex items-center gap-2 text-xs font-black pt-1">
+                  {task.rewardCoins && (
+                    <span className="text-amber-400 font-black flex items-center gap-1 bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/30">
+                      🪙 +{task.rewardCoins.toLocaleString()} Xu
+                    </span>
+                  )}
+                  <span className="flex items-center gap-1 text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded-lg border border-purple-500/30">
+                    <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                    +{task.rewardPoints} điểm
+                  </span>
                 </div>
               </div>
 
