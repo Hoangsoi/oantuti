@@ -783,8 +783,28 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
                 </div>
 
                 <div className="card-glass p-3.5 border-emerald-500/30 text-center space-y-1">
-                  <div className="text-[10px] font-bold text-slate-400 uppercase">Phế Nhà Cái Đã Thu (5%)</div>
-                  <div className="text-xl font-black text-emerald-400">{gameStats.totalRakeCollected.toLocaleString()} Xu</div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase">TỔNG PHẾ THU (5%)</div>
+                  <div className="text-lg font-black text-emerald-400">{(gameStats.totalRakeCollected || 0).toLocaleString()} Xu</div>
+                </div>
+              </div>
+
+              {/* Net House Profit Breakdown Card */}
+              <div className="card-glass p-4 border-emerald-500/50 bg-emerald-950/20 space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold border-b border-emerald-500/20 pb-2">
+                  <span className="text-slate-300">Tổng phế thu được (5% phòng đấu):</span>
+                  <span className="font-black text-emerald-400">+{(gameStats.totalRakeCollected || 0).toLocaleString()} Xu</span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs font-bold border-b border-emerald-500/20 pb-2">
+                  <span className="text-slate-300">Đã trích chi trả Hoa Hồng Đại Lý (F1-F5):</span>
+                  <span className="font-black text-purple-400">-{(gameStats.totalCommissionsPaid || 0).toLocaleString()} Xu</span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs font-black pt-1">
+                  <span className="text-amber-300">💵 PHẾ RÒNG THỰC NHẬN (LỢI NHUẬN):</span>
+                  <span className="text-sm font-black text-amber-400 bg-amber-500/20 px-2.5 py-1 rounded-xl border border-amber-500/40 shadow-sm">
+                    +{(gameStats.netHouseProfit !== undefined ? gameStats.netHouseProfit : ((gameStats.totalRakeCollected || 0) - (gameStats.totalCommissionsPaid || 0))).toLocaleString()} Xu
+                  </span>
                 </div>
               </div>
 

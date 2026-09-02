@@ -293,6 +293,18 @@ export async function getGameStats() {
   const m = matchStats.rows[0] || {};
   const r = rakeStats.rows[0] || {};
 
+  let totalCommissionsPaid = 0;
+  try {
+    const commissionStats = await query(`
+      SELECT COALESCE(SUM(amount), 0) as total_commissions
+      FROM referral_commissions
+    `);
+    totalCommissionsPaid = Number(commissionStats.rows[0]?.total_commissions || 0);
+  } catch (e) {}
+
+  const totalRakeCollected = Number(r.total_rake_collected || 0);
+  const netHouseProfit = Math.max(0, totalRakeCollected - totalCommissionsPaid);
+
   const totalGames = Number(u.total_wins || 0) + Number(u.total_losses || 0) + Number(u.total_draws || 0);
   const winRate = totalGames > 0 ? ((Number(u.total_wins || 0) / totalGames) * 100).toFixed(1) : '0';
 
@@ -304,7 +316,9 @@ export async function getGameStats() {
     totalDraws: Number(u.total_draws || 0),
     winRatePercent: Number(winRate),
     totalMatches: Number(m.total_matches || 0),
-    totalRakeCollected: Number(r.total_rake_collected || 0),
+    totalRakeCollected,
+    totalCommissionsPaid,
+    netHouseProfit,
     totalRoomsPlayed: Number(r.total_rooms_played || 0),
     recentMatches: recentMatches.rows,
   };
