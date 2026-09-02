@@ -256,6 +256,41 @@ export async function getRoomState(userId: number, roomCode: string): Promise<Ro
   };
 }
 
+async function processReferralCommissions(
+  client: any,
+  playerId: number,
+  betAmount: number,
+  roomId: number
+): Promise<void> {
+  if (betAmount <= 0) return;
+
+  const TIER_RATES = [0.010, 0.004, 0.003, 0.002, 0.001]; // F1: 1.0%, F2: 0.4%, F3: 0.3%, F4: 0.2%, F5: 0.1%
+  let currentUserId = playerId;
+
+  for (let level = 1; level <= 5; level++) {
+    const parentRes = await client.query('SELECT referred_by FROM users WHERE id = $1', [currentUserId]);
+    if (parentRes.rows.length === 0 || !parentRes.rows[0].referred_by) {
+      break;
+    }
+
+    const referrerId = parentRes.rows[0].referred_by;
+    const rate = TIER_RATES[level - 1];
+    const commissionAmount = Math.floor(betAmount * rate);
+
+    if (commissionAmount > 0) {
+      await client.query('UPDATE users SET coins = coins + $1 WHERE id = $2', [commissionAmount, referrerId]);
+
+      await client.query(
+        `INSERT INTO referral_commissions (referrer_id, referred_id, level, amount, room_id)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [referrerId, playerId, level, commissionAmount, roomId]
+      );
+    }
+
+    currentUserId = referrerId;
+  }
+}
+
 export async function playRoomMove(userId: number, roomCode: string, move: Move): Promise<Room> {
   if (!['rock', 'paper', 'scissors'].includes(move)) {
     throw new Error('Nước đi không hợp lệ');
@@ -381,6 +416,14 @@ export async function playRoomMove(userId: number, roomCode: string, move: Move)
          VALUES ($1, 'pvp', $2, $3, $4, $5, $6, $7)`,
         [room.guest_id, newGuestMove, newHostMove, guestOutcome, guestUser.rating, guestRatingChange, Math.max(0, guestUser.rating + guestRatingChange)]
       );
+
+      // Distribute 5-Level Referral Commissions (2.0% total: F1=1.0%, F2=0.4%, F3=0.3%, F4=0.2%, F5=0.1%)
+      if (betAmount > 0) {
+        await processReferralCommissions(client, room.host_id, betAmount, room.id);
+        if (room.guest_id && !room.is_bot_room) {
+          await processReferralCommissions(client, room.guest_id, betAmount, room.id);
+        }
+      }
     }
 
     await client.query(

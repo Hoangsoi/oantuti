@@ -108,10 +108,19 @@ export interface AdminPaymentInfo {
   qrCodeUrl?: string;
 }
 
+export interface ReferralTierStat {
+  level: number;
+  count: number;
+  ratePercent: string;
+  commissionCoins: number;
+}
+
 export interface ReferralStat {
   totalReferrals: number;
+  totalCommissions: number;
   referralCode: string;
   referralLink: string;
+  tiers: ReferralTierStat[];
   referredUsers: {
     id: number;
     first_name: string;
