@@ -494,9 +494,6 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
           </div>
 
           <h2 className="text-2xl font-black text-white">ĐANG KHÓA NƯỚC ĐI...</h2>
-          <p className="text-xs text-slate-300 font-semibold max-w-xs">
-            Cả 2 đối thủ đã chọn xong! Kết quả sẽ được công bố sau <span className="text-amber-400 font-black">{revealTimeLeft} giây</span>
-          </p>
 
           {/* Both Choices Mystery Box */}
           {(() => {
