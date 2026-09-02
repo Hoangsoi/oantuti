@@ -232,8 +232,8 @@ export async function getRoomState(userId: number, roomCode: string): Promise<Ro
   }
 
   const room = res.rows[0];
-  const isHost = room.host_id === userId;
-  const isGuest = room.guest_id === userId;
+  const isHost = Number(room.host_id) === Number(userId);
+  const isGuest = Number(room.guest_id) === Number(userId);
 
   const has_host_locked = !!room.host_move;
   const has_guest_locked = !!room.guest_move;
@@ -312,8 +312,8 @@ export async function playRoomMove(userId: number, roomCode: string, move: Move)
       throw new Error('Trận đấu phòng này đã hoàn thành');
     }
 
-    const isHost = room.host_id === userId;
-    const isGuest = room.guest_id === userId;
+    const isHost = Number(room.host_id) === Number(userId);
+    const isGuest = Number(room.guest_id) === Number(userId);
 
     if (!isHost && !isGuest) {
       throw new Error('Bạn không phải người chơi trong phòng này');

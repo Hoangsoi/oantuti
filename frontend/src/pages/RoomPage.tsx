@@ -118,12 +118,12 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
 
     if (revealTimeLeft <= 0) {
       if (room && currentUser) {
-        const isHostUser = room.host_id === currentUser.id;
+        const isHostUser = Number(room.host_id) === Number(currentUser.id);
         const myMove = isHostUser ? room.host_move : room.guest_move;
         const opponentMove = isHostUser ? room.guest_move : room.host_move;
 
         let result: 'win' | 'lose' | 'draw' = 'draw';
-        if (room.winner_id === currentUser.id) {
+        if (room.winner_id !== null && Number(room.winner_id) === Number(currentUser.id)) {
           result = 'win';
         } else if (room.winner_id !== null) {
           result = 'lose';
@@ -209,6 +209,10 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
   const handleSelectMove = async (move: Move) => {
     if (!room || mySelectedMove || loading) return;
     setMySelectedMove(move);
+    try {
+      localStorage.setItem(`room_move_${room.room_code}`, move);
+    } catch (e) {}
+
     setLoading(true);
     try {
       const updated = await api.playRoomMove(room.room_code, move);
@@ -471,9 +475,10 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
 
           {/* Both Choices Mystery Box */}
           {(() => {
-            const isHostUser = currentUser ? room.host_id === currentUser.id : false;
+            const isHostUser = currentUser ? Number(room.host_id) === Number(currentUser.id) : false;
             const myMoveFromRoom = isHostUser ? room.host_move : room.guest_move;
-            const myMoveToDisplay = mySelectedMove || myMoveFromRoom;
+            const localSavedMove = typeof window !== 'undefined' ? (localStorage.getItem(`room_move_${room.room_code}`) as Move | null) : null;
+            const myMoveToDisplay = mySelectedMove || myMoveFromRoom || localSavedMove;
 
             return (
               <div className="card-glass p-5 w-full border-slate-700/80 my-4">
