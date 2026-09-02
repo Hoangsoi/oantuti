@@ -1,15 +1,14 @@
 import crypto from 'crypto';
-import http from 'http';
 import https from 'https';
 import { TelegramUser, Transaction, User } from '../types';
 import { config } from '../config';
 
 /**
- * Validates Telegram Mini App initData string.
- * Official Specification: https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
+ * Validates Telegram Mini App initData string according to official Telegram specification.
+ * Specification: https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
  */
 export function verifyTelegramInitData(initData: string, botToken: string): { isValid: boolean; user?: TelegramUser } {
-  if (!initData) {
+  if (!initData || !botToken) {
     return { isValid: false };
   }
 
@@ -22,7 +21,22 @@ export function verifyTelegramInitData(initData: string, botToken: string): { is
 
     urlParams.delete('hash');
 
-    // Sort parameters alphabetically
+    // 1. Verify auth_date to prevent replay attacks (MAX 24 hours expiry)
+    const authDateStr = urlParams.get('auth_date');
+    if (!authDateStr) {
+      return { isValid: false };
+    }
+
+    const authDate = parseInt(authDateStr, 10);
+    const now = Math.floor(Date.now() / 1000);
+    const MAX_EXPIRY_SECONDS = 86400; // 24 hours
+
+    if (isNaN(authDate) || now - authDate > MAX_EXPIRY_SECONDS || authDate - now > 300) {
+      console.warn('[Telegram Auth] InitData expired or invalid auth_date timestamp:', authDateStr);
+      return { isValid: false };
+    }
+
+    // 2. Sort parameters alphabetically
     const paramPairs: string[] = [];
     urlParams.forEach((val, key) => {
       paramPairs.push(`${key}=${val}`);
@@ -31,16 +45,24 @@ export function verifyTelegramInitData(initData: string, botToken: string): { is
 
     const dataCheckString = paramPairs.join('\n');
 
-    // 1. Calculate secret_key = HMAC-SHA256(key="WebAppData", msg=bot_token)
+    // 3. Calculate secret_key = HMAC-SHA256(key="WebAppData", msg=bot_token)
     const secretKey = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest();
 
-    // 2. Calculate HMAC-SHA256(key=secret_key, msg=data_check_string)
-    const calculatedHash = crypto
+    // 4. Calculate HMAC-SHA256(key=secret_key, msg=data_check_string)
+    const calculatedHashHex = crypto
       .createHmac('sha256', secretKey)
       .update(dataCheckString)
       .digest('hex');
 
-    const isValid = calculatedHash.toLowerCase() === hash.toLowerCase();
+    // 5. Use timingSafeEqual to prevent timing attacks
+    const calculatedBuffer = Buffer.from(calculatedHashHex.toLowerCase(), 'utf8');
+    const hashBuffer = Buffer.from(hash.toLowerCase(), 'utf8');
+
+    if (calculatedBuffer.length !== hashBuffer.length) {
+      return { isValid: false };
+    }
+
+    const isValid = crypto.timingSafeEqual(calculatedBuffer, hashBuffer);
 
     if (!isValid) {
       return { isValid: false };
@@ -54,13 +76,13 @@ export function verifyTelegramInitData(initData: string, botToken: string): { is
 
     return { isValid: true, user };
   } catch (error) {
-    console.error('Error verifying initData:', error);
+    console.error('Error verifying Telegram initData:', error);
     return { isValid: false };
   }
 }
 
 /**
- * Generates a mock Telegram user for development testing outside of Telegram WebApp.
+ * Generates a mock Telegram user ONLY for development testing outside Telegram WebApp.
  */
 export function getMockTelegramUser(customId: number = 999999): TelegramUser {
   return {
@@ -81,7 +103,7 @@ export async function sendTelegramAdminNotification(tx: Transaction, user: User)
   const adminChatId = config.adminTelegramId || '8780377211';
 
   if (!botToken || botToken.includes('AAEXAMPLE')) {
-    console.log('[Telegram Bot] Mock send notification to Admin:', adminChatId, 'for tx:', tx.id);
+    console.log('[Telegram Bot Notification] Suppressed bot message (Bot token not configured or dev mode).');
     return;
   }
 
@@ -112,12 +134,12 @@ export async function sendTelegramAdminNotification(tx: Transaction, user: User)
     );
 
     req.on('error', (err) => {
-      console.error('[Telegram Bot] Error sending admin notification:', err.message);
+      console.error('[Telegram Bot Notification Error]:', err.message);
     });
 
     req.write(postData);
     req.end();
   } catch (error) {
-    console.error('[Telegram Bot] Exception sending admin notification:', error);
+    console.error('[Telegram Bot Exception]:', error);
   }
 }

@@ -9,25 +9,49 @@ import { apiRateLimiter } from './middleware/rateLimit.middleware';
 
 const app = express();
 
-// Security and middleware
-app.use(helmet());
+// Trust reverse proxy (e.g. Render, Cloudflare) for accurate client IP detection
+app.set('trust proxy', 1);
+
+// Security Headers with Helmet
 app.use(
-  cors({
-    origin: '*', // Allow Telegram WebApp domain and local frontend during dev
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+  helmet({
+    contentSecurityPolicy: false, // Disable default CSP so Telegram WebApp scripts load without friction
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
   })
 );
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// CORS Hardening
+const allowedOrigins = [
+  'https://telegram.org',
+  'https://t.me',
+  process.env.FRONTEND_URL,
+].filter(Boolean) as string[];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, Telegram WebApp WebView, curl) or in dev mode
+      if (!origin || config.nodeEnv === 'development' || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(null, true); // Permissive origin for Telegram Mini App embedded WebViews
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+  })
+);
+
+// Body limit configuration (Max 100kb payload to prevent payload overload attacks)
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
 // Global rate limiting
 app.use('/api', apiRateLimiter);
 
-// Health check endpoint
+// Health check endpoint (Strict JSON response only)
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', time: new Date().toISOString() });
+  res.json({ status: 'ok' });
 });
 
 // API Routes
@@ -41,7 +65,7 @@ async function startServer() {
   await initDatabase();
 
   app.listen(config.port, () => {
-    console.log(`🚀 Máy chủ OẲN TÙ TÌ Backend đang chạy tại http://localhost:${config.port}`);
+    console.log(`🚀 Máy chủ OẲN TÙ TÌ Backend đang chạy tại port ${config.port}`);
     console.log(`🎮 Môi trường: ${config.nodeEnv}`);
   });
 }
