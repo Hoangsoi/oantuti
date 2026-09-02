@@ -24,7 +24,7 @@ const POPULAR_BANKS = [
   'VietinBank',
 ];
 
-const ADMIN_TELEGRAM_ID = '8780377211';
+const ADMIN_TELEGRAM_USERNAME = 'lucky20261102';
 
 export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdated, onBackHome }) => {
   const [activeTab, setActiveTab] = useState<'deposit' | 'withdraw' | 'bank' | 'history'>('deposit');
@@ -91,20 +91,18 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
     }
 
     return isDeposit
-      ? `💬 BÁO DUYỆT ĐƠN NẠP XU (ADMIN ID: ${ADMIN_TELEGRAM_ID})\n-----------------------\n🔑 Mã đơn: #${tx.id}\n👤 Khách hàng: ${currentUser?.first_name} (ID: ${currentUser?.id})\n💰 Số tiền: ${Number(tx.amount).toLocaleString()} ${tx.payment_method === 'usdt' ? 'USDT' : 'VNĐ'}\n🪙 Quy đổi: +${tx.coins.toLocaleString()} Xu\n👉 Vui lòng kiểm tra và duyệt Xu giúp tôi!`
-      : `💬 BÁO YÊU CẦU RÚT TIỀN (ADMIN ID: ${ADMIN_TELEGRAM_ID})\n-----------------------\n🔑 Mã đơn rút: #${tx.id}\n👤 Khách hàng: ${currentUser?.first_name} (ID: ${currentUser?.id})\n🏦 Nơi nhận: ${bankDetailText}\n🪙 Số Xu rút: -${tx.coins.toLocaleString()} Xu\n💵 Số tiền thực nhận: ${Number(tx.amount).toLocaleString()} ${tx.payment_method === 'usdt' ? 'USDT' : 'VNĐ'}\n👉 Vui lòng kiểm tra và chuyển tiền giúp tôi!`;
+      ? `💬 BÁO DUYỆT ĐƠN NẠP XU (@${ADMIN_TELEGRAM_USERNAME})\n-----------------------\n🔑 Mã đơn: #${tx.id}\n👤 Khách hàng: ${currentUser?.first_name} (ID: ${currentUser?.id})\n💰 Số tiền: ${Number(tx.amount).toLocaleString()} ${tx.payment_method === 'usdt' ? 'USDT' : 'VNĐ'}\n🪙 Quy đổi: +${tx.coins.toLocaleString()} Xu\n👉 Vui lòng kiểm tra và duyệt Xu giúp tôi!`
+      : `💬 BÁO YÊU CẦU RÚT TIỀN (@${ADMIN_TELEGRAM_USERNAME})\n-----------------------\n🔑 Mã đơn rút: #${tx.id}\n👤 Khách hàng: ${currentUser?.first_name} (ID: ${currentUser?.id})\n🏦 Nơi nhận: ${bankDetailText}\n🪙 Số Xu rút: -${tx.coins.toLocaleString()} Xu\n💵 Số tiền thực nhận: ${Number(tx.amount).toLocaleString()} ${tx.payment_method === 'usdt' ? 'USDT' : 'VNĐ'}\n👉 Vui lòng kiểm tra và chuyển tiền giúp tôi!`;
   };
 
   const handleOpenAdminChat = (tx: Transaction) => {
     const text = getAdminNotificationText(tx);
     navigator.clipboard.writeText(text);
 
-    const adminUsername = import.meta.env.VITE_ADMIN_USERNAME || import.meta.env.VITE_BOT_USERNAME || 'OanTuTiBot';
+    const adminUsername = import.meta.env.VITE_ADMIN_USERNAME || ADMIN_TELEGRAM_USERNAME;
     const adminUrl = adminUsername.startsWith('http')
       ? adminUsername
-      : adminUsername.startsWith('id')
-      ? `https://t.me/${adminUsername}`
-      : `https://t.me/${adminUsername}`;
+      : `https://t.me/${adminUsername.replace('@', '')}`;
 
     openTelegramDirect(adminUrl);
   };
@@ -149,7 +147,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
       const tx = await api.deposit(depositMethod, amt, depositMemo || defaultMemo);
       setCreatedTx(tx);
       triggerHapticNotification('success');
-      setSuccessMsg(`Yêu cầu nạp tiền #${tx.id} đã khởi tạo thành công! Bấm nút bên dưới để nhắn trực tiếp Admin duyệt đơn.`);
+      setSuccessMsg(`Yêu cầu nạp tiền #${tx.id} đã khởi tạo thành công! Bấm nút bên dưới để nhắn trực tiếp Admin (@${ADMIN_TELEGRAM_USERNAME}) duyệt đơn.`);
       handleOpenAdminChat(tx);
       loadWallet();
     } catch (err: any) {
@@ -183,7 +181,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
       const result = await api.withdraw(withdrawMethod, coins);
       setCreatedTx(result.transaction);
       triggerHapticNotification('success');
-      setSuccessMsg(`Yêu cầu rút #${result.transaction.id} (${coins.toLocaleString()} Xu) đã gửi thành công! Bấm nút bên dưới để nhắn Admin duyệt.`);
+      setSuccessMsg(`Yêu cầu rút #${result.transaction.id} (${coins.toLocaleString()} Xu) đã gửi thành công! Bấm nút bên dưới để nhắn Admin (@${ADMIN_TELEGRAM_USERNAME}) duyệt.`);
       handleOpenAdminChat(result.transaction);
       onUserUpdated(result.updatedUser);
       loadWallet();
@@ -289,7 +287,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
                 className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all"
               >
                 <MessageCircle className="w-4 h-4 text-amber-400" />
-                <span>💬 MỞ CHAT VỚI ADMIN BÁO DUYỆT (# {createdTx.id})</span>
+                <span>💬 MỞ CHAT VỚI ADMIN @lucky20261102 (# {createdTx.id})</span>
               </button>
 
               <button
