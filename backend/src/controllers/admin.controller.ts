@@ -8,6 +8,7 @@ import {
   getAllUsers,
   adjustUserCoins,
   toggleBlockUser,
+  toggleCompanyUser,
   getGameStats,
   getPaymentConfig,
   updatePaymentConfig,
@@ -115,6 +116,21 @@ export async function toggleBlockUserHandler(req: Request, res: Response) {
     return sendSuccess(res, updatedUser, `${statusStr} tài khoản khách hàng ID #${userId}`);
   } catch (error: any) {
     return sendError(res, error.message || 'Không thể đổi trạng thái tài khoản');
+  }
+}
+
+export async function toggleCompanyUserHandler(req: Request, res: Response) {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    if (isNaN(userId)) {
+      return sendError(res, 'ID khách hàng không hợp lệ', 400);
+    }
+
+    const updatedUser = await toggleCompanyUser(userId);
+    const statusStr = updatedUser.is_company_account ? 'Đã gắn cờ Tài Khoản Công Ty' : 'Đã gỡ cờ Tài Khoản Công Ty';
+    return sendSuccess(res, updatedUser, `${statusStr} cho ID #${userId}`);
+  } catch (error: any) {
+    return sendError(res, error.message || 'Không thể thay đổi cờ tài khoản công ty');
   }
 }
 

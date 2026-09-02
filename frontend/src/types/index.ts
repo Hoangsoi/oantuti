@@ -19,6 +19,7 @@ export interface User {
   referral_code: string;
   referred_by: number | null;
   is_blocked?: boolean;
+  is_company_account?: boolean;
   created_at: string;
   updated_at: string;
 }

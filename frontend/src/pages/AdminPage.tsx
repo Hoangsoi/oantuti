@@ -255,6 +255,25 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
     }
   };
 
+  const handleToggleCompany = async (userId: number, currentFlag: boolean) => {
+    setActionLoading(`company_${userId}`);
+    setStatusMsg(null);
+    try {
+      await api.toggleCompanyAdminUser(userId);
+      triggerHapticNotification('success');
+      setStatusMsg({
+        type: 'success',
+        text: `Đã ${currentFlag ? 'gỡ cờ' : 'gắn cờ'} Tài Khoản Công Ty cho ID #${userId} thành công!`,
+      });
+      loadUsers();
+    } catch (err: any) {
+      triggerHapticNotification('error');
+      setStatusMsg({ type: 'error', text: err.message || 'Lỗi khi đổi cờ tài khoản công ty' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleSavePaymentConfig = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionLoading(true);
@@ -645,8 +664,13 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
                           className="w-10 h-10 rounded-full border border-purple-400/60 object-cover bg-slate-900"
                         />
                         <div>
-                          <div className="text-xs font-extrabold text-white">
-                            {u.first_name} {u.last_name || ''}
+                          <div className="text-xs font-extrabold text-white flex items-center gap-1.5">
+                            <span>{u.first_name} {u.last_name || ''}</span>
+                            {u.is_company_account && (
+                              <span className="px-1.5 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[9px] font-black uppercase">
+                                🏢 CÔNG TY
+                              </span>
+                            )}
                           </div>
                           <div className="text-[10px] text-slate-400 font-semibold">
                             @{u.username || 'n/a'} (ID: {u.telegram_id})
@@ -676,24 +700,36 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
                     )}
 
                     {/* Actions */}
-                    <div className="flex items-center justify-between pt-1 border-t border-slate-800">
+                    <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1 border-t border-slate-800">
                       <button
                         onClick={() => setSelectedUserForCoins(u)}
-                        className="px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 font-extrabold text-[11px] flex items-center gap-1 active:scale-95"
+                        className="px-2.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 font-extrabold text-[10px] flex items-center gap-1 active:scale-95"
                       >
                         <Coins className="w-3.5 h-3.5" />
-                        <span>CỘNG / TRỪ XU</span>
+                        <span>CỘNG/TRỪ XU</span>
                       </button>
 
                       <button
-                        onClick={() => handleToggleBlock(u.id, u.is_blocked)}
+                        onClick={() => handleToggleCompany(u.id, !!u.is_company_account)}
+                        disabled={actionLoading === `company_${u.id}`}
+                        className={`px-2.5 py-1.5 rounded-xl font-extrabold text-[10px] flex items-center gap-1 active:scale-95 ${
+                          u.is_company_account
+                            ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
+                            : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-white'
+                        }`}
+                      >
+                        <span>{u.is_company_account ? '🏢 BỎ CỜ CÔNG TY' : '🏢 GẮN CỜ CÔNG TY'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleToggleBlock(u.id, !!u.is_blocked)}
                         disabled={actionLoading === u.id}
-                        className={`px-3 py-1.5 rounded-xl font-extrabold text-[11px] flex items-center gap-1 active:scale-95 ${
+                        className={`px-2.5 py-1.5 rounded-xl font-extrabold text-[10px] flex items-center gap-1 active:scale-95 ${
                           u.is_blocked ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-red-500/20 text-red-300 border border-red-500/40'
                         }`}
                       >
                         {u.is_blocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-                        <span>{u.is_blocked ? 'MỞ KHÓA TK' : 'KHÓA TK'}</span>
+                        <span>{u.is_blocked ? 'MỞ KHÓA' : 'KHÓA TK'}</span>
                       </button>
                     </div>
                   </div>

@@ -240,6 +240,21 @@ export async function toggleBlockUser(userId: number) {
   return res.rows[0];
 }
 
+export async function toggleCompanyUser(userId: number) {
+  try {
+    await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_company_account BOOLEAN DEFAULT FALSE');
+  } catch (e) {}
+
+  const res = await query<User>(
+    'UPDATE users SET is_company_account = NOT COALESCE(is_company_account, FALSE), updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
+    [userId]
+  );
+  if (res.rows.length === 0) {
+    throw new Error('Khách hàng không tồn tại');
+  }
+  return res.rows[0];
+}
+
 // ----------------------------------------------------------------------
 // GAME & WIN/LOSS STATISTICS APIs
 // ----------------------------------------------------------------------

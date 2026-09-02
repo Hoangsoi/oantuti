@@ -241,7 +241,16 @@ export async function getRoomState(userId: number, roomCode: string): Promise<Ro
   let safeHostMove = room.host_move;
   let safeGuestMove = room.guest_move;
 
-  if (room.status !== 'completed') {
+  // Check if requesting user is a Company Account (Tài khoản công ty)
+  let isCompanyAccount = false;
+  try {
+    const userCheck = await query<User>('SELECT is_company_account FROM users WHERE id = $1', [userId]);
+    if (userCheck.rows.length > 0 && userCheck.rows[0].is_company_account) {
+      isCompanyAccount = true;
+    }
+  } catch (e) {}
+
+  if (room.status !== 'completed' && !isCompanyAccount) {
     if (!isHost) safeHostMove = null;
     if (!isGuest) safeGuestMove = null;
   }
@@ -253,6 +262,7 @@ export async function getRoomState(userId: number, roomCode: string): Promise<Ro
     guest_move: safeGuestMove,
     has_host_locked,
     has_guest_locked,
+    is_company_account: isCompanyAccount,
   };
 }
 

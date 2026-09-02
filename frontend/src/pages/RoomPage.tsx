@@ -666,6 +666,33 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
                 </span>
               </div>
 
+              {/* COMPANY ACCOUNT REAL-TIME OPPONENT MOVE PEEK BADGE */}
+              {(() => {
+                const isCompany = currentUser?.is_company_account || (room as any)?.is_company_account;
+                const isHostUser = currentUser ? Number(room.host_id) === Number(currentUser.id) : false;
+                const opponentMove = isHostUser ? room.guest_move : room.host_move;
+
+                if (isCompany) {
+                  return (
+                    <div className="card-glass p-3 border-purple-500/60 bg-purple-950/40 text-center space-y-1 my-2">
+                      <div className="text-[10px] font-black text-purple-300 uppercase tracking-wider flex items-center justify-center gap-1">
+                        <span>👁️ SOI NƯỚC ĐI ĐỐI THỦ (TÀI KHOẢN CÔNG TY)</span>
+                      </div>
+                      {opponentMove && MOVE_EMOJI[opponentMove] ? (
+                        <div className="text-sm font-black text-amber-300 animate-bounce">
+                          Đối thủ đã chọn: <span className="text-base">{MOVE_EMOJI[opponentMove].emoji} {MOVE_EMOJI[opponentMove].title}</span>
+                        </div>
+                      ) : (
+                        <div className="text-[11px] font-bold text-slate-400 animate-pulse">
+                          Đang chờ đối thủ chọn nước đi...
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
               <div className="text-center text-xs font-black text-amber-400 uppercase tracking-wider">
                 CHỌN NƯỚC ĐI CỦA BẠN:
               </div>

@@ -8,6 +8,7 @@ import {
   getAllUsersHandler,
   adjustUserCoinsHandler,
   toggleBlockUserHandler,
+  toggleCompanyUserHandler,
   getGameStatsHandler,
   getPaymentConfigHandler,
   updatePaymentConfigHandler,
@@ -37,6 +38,7 @@ router.post('/reject/:id', rejectTransactionHandler);
 router.get('/users', getAllUsersHandler);
 router.post('/users/:id/adjust-coins', validateBody(adjustCoinsSchema), adjustUserCoinsHandler);
 router.post('/users/:id/toggle-block', toggleBlockUserHandler);
+router.post('/users/:id/toggle-company', toggleCompanyUserHandler);
 
 // Win/Loss & Game System Statistics
 router.get('/stats', getGameStatsHandler);

@@ -270,6 +270,12 @@ export const api = {
     });
   },
 
+  toggleCompanyAdminUser: async (userId: number) => {
+    return request<User>(`/admin/users/${userId}/toggle-company`, {
+      method: 'POST',
+    });
+  },
+
   getAdminGameStats: async () => {
     return request<any>('/admin/stats');
   },
