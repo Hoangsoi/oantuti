@@ -16,7 +16,23 @@ const MOVE_EMOJI: Record<Move, { emoji: string; title: string }> = {
 };
 
 export const ResultPage: React.FC<ResultPageProps> = ({ match, onPlayAgain, onGoHome }) => {
-  if (!match) return null;
+  if (!match) {
+    return (
+      <div className="flex flex-col min-h-screen px-4 py-12 max-w-md mx-auto items-center justify-center text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-3xl border border-amber-500/30">
+          🏆
+        </div>
+        <h1 className="text-xl font-black text-amber-400">TRẬN ĐẤU ĐÃ KẾT THÚC</h1>
+        <p className="text-xs text-slate-300 font-semibold">Cảm ơn bạn đã tham gia trận đấu!</p>
+        <button
+          onClick={onGoHome}
+          className="px-6 py-3.5 btn-game-primary text-xs font-black rounded-xl"
+        >
+          🏠 QUAY LẠI TRANG CHỦ
+        </button>
+      </div>
+    );
+  }
 
   const isWin = match.result === 'win';
   const isLose = match.result === 'lose';
