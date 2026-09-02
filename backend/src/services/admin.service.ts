@@ -15,6 +15,28 @@ export async function getPendingTransactions() {
   return res.rows;
 }
 
+export async function getAllTransactions(statusFilter?: string) {
+  let sql = `
+    SELECT t.*, 
+           u.first_name, u.last_name, u.username, u.telegram_id, u.photo_url,
+           b.bank_name, b.account_number, b.account_holder
+    FROM transactions t
+    JOIN users u ON t.user_id = u.id
+    LEFT JOIN bank_accounts b ON b.user_id = u.id
+  `;
+
+  const params: any[] = [];
+  if (statusFilter && statusFilter !== 'all') {
+    sql += ` WHERE t.status = $1`;
+    params.push(statusFilter);
+  }
+
+  sql += ` ORDER BY t.created_at DESC LIMIT 100`;
+
+  const res = await query(sql, params);
+  return res.rows;
+}
+
 export async function approveTransaction(txId: number) {
   const client = await pool.connect();
 
@@ -43,7 +65,7 @@ export async function approveTransaction(txId: number) {
     // Update transaction status to approved
     const updatedTxRes = await client.query<Transaction>(
       `UPDATE transactions 
-       SET status = 'approved', admin_note = 'Đã duyệt và chuyển khoản bởi Admin', updated_at = CURRENT_TIMESTAMP 
+       SET status = 'approved', admin_note = 'Đã duyệt bởi Admin', updated_at = CURRENT_TIMESTAMP 
        WHERE id = $1 
        RETURNING *`,
       [txId]
@@ -103,4 +125,159 @@ export async function rejectTransaction(txId: number, adminNote?: string) {
   } finally {
     client.release();
   }
+}
+
+// ----------------------------------------------------------------------
+// USER MANAGEMENT APIs
+// ----------------------------------------------------------------------
+export async function getAllUsers(searchQuery?: string) {
+  let sql = `
+    SELECT u.id, u.telegram_id, u.first_name, u.last_name, u.username, u.photo_url,
+           u.coins, u.rating, u.wins, u.losses, u.draws, u.win_streak, u.max_win_streak,
+           u.is_blocked, u.created_at, u.updated_at,
+           b.bank_name, b.account_number, b.account_holder
+    FROM users u
+    LEFT JOIN bank_accounts b ON b.user_id = u.id
+  `;
+
+  const params: any[] = [];
+  if (searchQuery && searchQuery.trim()) {
+    const term = `%${searchQuery.trim()}%`;
+    sql += ` WHERE u.first_name ILIKE $1 OR u.last_name ILIKE $1 OR u.username ILIKE $1 OR CAST(u.telegram_id AS TEXT) ILIKE $1`;
+    params.push(term);
+  }
+
+  sql += ` ORDER BY u.created_at DESC LIMIT 100`;
+
+  const res = await query(sql, params);
+  return res.rows;
+}
+
+export async function adjustUserCoins(userId: number, coinAmount: number, reason?: string) {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const userRes = await client.query<User>('SELECT * FROM users WHERE id = $1 FOR UPDATE', [userId]);
+    if (userRes.rows.length === 0) {
+      throw new Error('Khách hàng không tồn tại');
+    }
+
+    const updatedUser = await client.query<User>(
+      'UPDATE users SET coins = GREATEST(0, coins + $1), updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+      [coinAmount, userId]
+    );
+
+    // Record adjustment transaction
+    await client.query(
+      `INSERT INTO transactions (user_id, type, payment_method, amount, coins, status, memo)
+       VALUES ($1, $2, 'admin_manual', $3, $4, 'approved', $5)`,
+      [userId, coinAmount >= 0 ? 'deposit' : 'withdraw', Math.abs(coinAmount), Math.abs(coinAmount), reason || 'Admin điều chỉnh số dư']
+    );
+
+    await client.query('COMMIT');
+    return updatedUser.rows[0];
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function toggleBlockUser(userId: number) {
+  const res = await query<User>(
+    'UPDATE users SET is_blocked = NOT is_blocked, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
+    [userId]
+  );
+  if (res.rows.length === 0) {
+    throw new Error('Khách hàng không tồn tại');
+  }
+  return res.rows[0];
+}
+
+// ----------------------------------------------------------------------
+// GAME & WIN/LOSS STATISTICS APIs
+// ----------------------------------------------------------------------
+export async function getGameStats() {
+  const userStats = await query(`
+    SELECT COUNT(*) as total_users,
+           COALESCE(SUM(coins), 0) as total_coins,
+           COALESCE(SUM(wins), 0) as total_wins,
+           COALESCE(SUM(losses), 0) as total_losses,
+           COALESCE(SUM(draws), 0) as total_draws
+    FROM users
+  `);
+
+  const matchStats = await query(`
+    SELECT COUNT(*) as total_matches
+    FROM matches
+  `);
+
+  const rakeStats = await query(`
+    SELECT COALESCE(SUM(fee_amount), 0) as total_rake_collected,
+           COUNT(*) as total_rooms_played
+    FROM rooms
+    WHERE status = 'finished'
+  `);
+
+  const recentMatches = await query(`
+    SELECT m.*, 
+           u.first_name as player_name, u.telegram_id as player_tg_id
+    FROM matches m
+    JOIN users u ON m.user_id = u.id
+    ORDER BY m.created_at DESC
+    LIMIT 30
+  `);
+
+  const u = userStats.rows[0] || {};
+  const m = matchStats.rows[0] || {};
+  const r = rakeStats.rows[0] || {};
+
+  const totalGames = Number(u.total_wins || 0) + Number(u.total_losses || 0) + Number(u.total_draws || 0);
+  const winRate = totalGames > 0 ? ((Number(u.total_wins || 0) / totalGames) * 100).toFixed(1) : '0';
+
+  return {
+    totalUsers: Number(u.total_users || 0),
+    totalCoins: Number(u.total_coins || 0),
+    totalWins: Number(u.total_wins || 0),
+    totalLosses: Number(u.total_losses || 0),
+    totalDraws: Number(u.total_draws || 0),
+    winRatePercent: Number(winRate),
+    totalMatches: Number(m.total_matches || 0),
+    totalRakeCollected: Number(r.total_rake_collected || 0),
+    totalRoomsPlayed: Number(r.total_rooms_played || 0),
+    recentMatches: recentMatches.rows,
+  };
+}
+
+// ----------------------------------------------------------------------
+// PAYMENT CONFIG MANAGEMENT APIs
+// ----------------------------------------------------------------------
+export async function getPaymentConfig() {
+  return {
+    adminTelegramId: process.env.ADMIN_TELEGRAM_ID || '8780377211',
+    adminTelegramUsername: process.env.ADMIN_TELEGRAM_USERNAME || 'ottadmin2026',
+    bankName: process.env.ADMIN_BANK_NAME || 'MBBank (Ngân Hàng Quân Đội)',
+    accountNumber: process.env.ADMIN_BANK_ACCOUNT || '999988889999',
+    accountHolder: process.env.ADMIN_BANK_HOLDER || 'OAN TU TI OFFICIAL',
+    usdtAddress: process.env.ADMIN_USDT_ADDRESS || 'T9yD14Nj9j7xQvL894K1mP5xZ7W8qM3v',
+  };
+}
+
+export async function updatePaymentConfig(data: {
+  bankName?: string;
+  accountNumber?: string;
+  accountHolder?: string;
+  usdtAddress?: string;
+  adminTelegramUsername?: string;
+}) {
+  if (data.bankName) process.env.ADMIN_BANK_NAME = data.bankName;
+  if (data.accountNumber) process.env.ADMIN_BANK_ACCOUNT = data.accountNumber;
+  if (data.accountHolder) process.env.ADMIN_BANK_HOLDER = data.accountHolder;
+  if (data.usdtAddress) process.env.ADMIN_USDT_ADDRESS = data.usdtAddress;
+  if (data.adminTelegramUsername) process.env.ADMIN_TELEGRAM_USERNAME = data.adminTelegramUsername;
+
+  return getPaymentConfig();
 }

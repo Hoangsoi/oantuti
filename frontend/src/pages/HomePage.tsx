@@ -11,8 +11,12 @@ interface HomePageProps {
 export const HomePage: React.FC<HomePageProps> = ({ user, onNavigate }) => {
   return (
     <div className="flex flex-col min-h-screen pb-24">
-      {/* Top Header */}
-      <Header user={user} onProfileClick={() => onNavigate('profile')} />
+      <Header
+        user={user}
+        onProfileClick={() => onNavigate('profile')}
+        onTopupClick={() => onNavigate('wallet')}
+        onAdminClick={() => onNavigate('admin')}
+      />
 
       {/* Main Game Center Area */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-6 text-center">

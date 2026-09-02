@@ -142,9 +142,13 @@ export const api = {
     });
   },
 
-  // Admin Approval APIs
+  // Admin Management APIs
   getAdminPendingTransactions: async () => {
     return request<Transaction[]>('/admin/pending');
+  },
+
+  getAdminAllTransactions: async (status: string = 'all') => {
+    return request<Transaction[]>(`/admin/transactions?status=${status}`);
   },
 
   approveAdminTransaction: async (txId: number) => {
@@ -153,10 +157,49 @@ export const api = {
     });
   },
 
-  rejectAdminTransaction: async (txId: number, note?: string) => {
+  rejectAdminTransaction: async (txId: number, adminNote?: string) => {
     return request<Transaction>(`/admin/reject/${txId}`, {
       method: 'POST',
-      body: JSON.stringify({ note }),
+      body: JSON.stringify({ adminNote }),
+    });
+  },
+
+  getAdminUsers: async (search?: string) => {
+    const queryStr = search ? `?search=${encodeURIComponent(search)}` : '';
+    return request<any[]>(`/admin/users${queryStr}`);
+  },
+
+  adjustAdminUserCoins: async (userId: number, amount: number, reason?: string) => {
+    return request<User>(`/admin/users/${userId}/adjust-coins`, {
+      method: 'POST',
+      body: JSON.stringify({ amount, reason }),
+    });
+  },
+
+  toggleBlockAdminUser: async (userId: number) => {
+    return request<User>(`/admin/users/${userId}/toggle-block`, {
+      method: 'POST',
+    });
+  },
+
+  getAdminGameStats: async () => {
+    return request<any>('/admin/stats');
+  },
+
+  getAdminPaymentConfig: async () => {
+    return request<any>('/admin/payment-config');
+  },
+
+  updateAdminPaymentConfig: async (data: {
+    bankName?: string;
+    accountNumber?: string;
+    accountHolder?: string;
+    usdtAddress?: string;
+    adminTelegramUsername?: string;
+  }) => {
+    return request<any>('/admin/payment-config', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   },
 };

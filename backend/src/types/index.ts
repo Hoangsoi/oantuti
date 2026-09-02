@@ -27,6 +27,7 @@ export interface User {
   best_streak: number;
   referral_code: string;
   referred_by: number | null;
+  is_blocked?: boolean;
   created_at: Date;
   updated_at: Date;
 }
