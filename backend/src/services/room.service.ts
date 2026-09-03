@@ -214,6 +214,12 @@ export async function spectateRoom(userId: number, roomCode: string): Promise<Ro
   return getRoomState(userId, cleanCode);
 }
 
+function getLosingMove(winningMove: Move): Move {
+  if (winningMove === 'rock') return 'scissors';
+  if (winningMove === 'paper') return 'rock';
+  return 'paper'; // if winningMove is 'scissors'
+}
+
 export async function getRoomState(userId: number, roomCode: string): Promise<Room> {
   const cleanCode = roomCode.trim();
   const res = await query(
@@ -236,20 +242,27 @@ export async function getRoomState(userId: number, roomCode: string): Promise<Ro
   const isHost = Number(room.host_id) === Number(userId);
   const isGuest = Number(room.guest_id) === Number(userId);
 
-  // Auto-resolve timed out rooms if in 'ready' status for > 12 seconds
+  // Auto-resolve timed out rooms if in 'ready' status for > 12 seconds: punish timed-out player with a LOSS!
   if (room.status === 'ready') {
     const elapsedSec = (Date.now() - new Date(room.updated_at || room.created_at).getTime()) / 1000;
     if (elapsedSec > 12) {
       try {
-        const moves: Move[] = ['rock', 'paper', 'scissors'];
-        if (!room.host_move) {
-          const autoHostMove = moves[Math.floor(Math.random() * moves.length)];
-          await playRoomMove(room.host_id, cleanCode, autoHostMove);
+        if (room.host_move && !room.guest_move && room.guest_id) {
+          // Guest timed out -> assign Guest a losing move so Guest loses!
+          const losingGuestMove = getLosingMove(room.host_move as Move);
+          await playRoomMove(room.guest_id, cleanCode, losingGuestMove);
+        } else if (room.guest_move && !room.host_move) {
+          // Host timed out -> assign Host a losing move so Host loses!
+          const losingHostMove = getLosingMove(room.guest_move as Move);
+          await playRoomMove(room.host_id, cleanCode, losingHostMove);
+        } else if (!room.host_move && !room.guest_move) {
+          // Both timed out -> assign both 'rock' (draw)
+          await playRoomMove(room.host_id, cleanCode, 'rock');
+          if (room.guest_id) {
+            await playRoomMove(room.guest_id, cleanCode, 'rock');
+          }
         }
-        if (!room.guest_move && room.guest_id) {
-          const autoGuestMove = moves[Math.floor(Math.random() * moves.length)];
-          await playRoomMove(room.guest_id, cleanCode, autoGuestMove);
-        }
+
         // Re-fetch updated room state after auto-completing
         const updatedRes = await query(
           `SELECT r.*,
