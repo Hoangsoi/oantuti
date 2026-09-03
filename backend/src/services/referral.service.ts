@@ -92,3 +92,41 @@ export async function getUserReferrals(user: User): Promise<ReferralStat> {
     })),
   };
 }
+
+const LEVEL_RATES = [0.01, 0.004, 0.003, 0.002, 0.001];
+
+export async function processReferralCommissions(
+  dbClient: any,
+  playedUserId: number,
+  wagerAmount: number,
+  roomId?: number
+): Promise<void> {
+  if (!wagerAmount || wagerAmount <= 0) return;
+
+  const db = dbClient;
+  let currentUserId = playedUserId;
+
+  for (let level = 1; level <= 5; level++) {
+    const userRes = await db.query('SELECT referred_by FROM users WHERE id = $1', [currentUserId]);
+    if (userRes.rows.length === 0 || !userRes.rows[0].referred_by) {
+      break;
+    }
+
+    const referrerId = userRes.rows[0].referred_by;
+    const rate = LEVEL_RATES[level - 1] || 0;
+    const commissionCoins = Math.max(1, Math.floor(wagerAmount * rate));
+
+    if (commissionCoins > 0) {
+      await db.query('UPDATE users SET coins = coins + $1 WHERE id = $2', [commissionCoins, referrerId]);
+      await db.query(
+        `INSERT INTO referral_commissions (referrer_id, referred_id, level, amount, room_id)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [referrerId, playedUserId, level, commissionCoins, roomId || null]
+      );
+      console.log(`[Referral Commission] Level ${level}: Referrer ${referrerId} nhận +${commissionCoins} Xu từ player ${playedUserId}`);
+    }
+
+    currentUserId = referrerId;
+  }
+}
+

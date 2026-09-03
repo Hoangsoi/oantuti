@@ -351,7 +351,7 @@ async function processReferralCommissions(
 
     const referrerId = parentRes.rows[0].referred_by;
     const rate = TIER_RATES[level - 1];
-    const commissionAmount = Math.floor(betAmount * rate);
+    const commissionAmount = Math.max(1, Math.floor(betAmount * rate));
 
     if (commissionAmount > 0) {
       await client.query('UPDATE users SET coins = coins + $1 WHERE id = $2', [commissionAmount, referrerId]);
@@ -504,12 +504,14 @@ export async function playRoomMove(userId: number, roomCode: string, move: Move)
         [room.guest_id, newGuestMove, newHostMove, guestOutcome, guestUser.rating, guestRatingChange, Math.max(0, guestUser.rating + guestRatingChange)]
       );
 
-      // Distribute 5-Level Referral Commissions & Track VIP Wager Progression
+      // Distribute 5-Level Referral Commissions & Track VIP Wager Progression for Real Users
       if (betAmount > 0) {
-        await processReferralCommissions(client, room.host_id, betAmount, room.id);
-        await recordWagerAndCheckVipUpgrade(client, room.host_id, betAmount);
+        if (hostUser && hostUser.telegram_id && !String(hostUser.telegram_id).startsWith('-')) {
+          await processReferralCommissions(client, room.host_id, betAmount, room.id);
+          await recordWagerAndCheckVipUpgrade(client, room.host_id, betAmount);
+        }
 
-        if (room.guest_id && !room.is_bot_room) {
+        if (guestUser && room.guest_id && guestUser.telegram_id && !String(guestUser.telegram_id).startsWith('-')) {
           await processReferralCommissions(client, room.guest_id, betAmount, room.id);
           await recordWagerAndCheckVipUpgrade(client, room.guest_id, betAmount);
         }
