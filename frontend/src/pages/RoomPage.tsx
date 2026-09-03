@@ -49,28 +49,18 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
   useEffect(() => {
     if (!room || activeTab !== 'lobby' || isRevealing) return;
     const hasGuestJoined = !!(room.host_id && room.guest_id);
-    const isHostUser = currentUser && room.host_id === currentUser.id;
-    const myMoveLocked = isHostUser ? room.has_host_locked : room.has_guest_locked;
 
-    if (!hasGuestJoined || myMoveLocked) return;
+    if (!hasGuestJoined || room.status !== 'ready') return;
 
     if (selectionTimeLeft <= 0) {
-      // 10s selection timeout expired! Declare Timeout Loss
-      const betAmount = room.bet_amount || 0;
-      const timeoutLossMatch = {
-        id: room.id,
-        player_id: currentUser?.id || 0,
-        opponent_type: 'pvp',
-        player_move: 'rock' as Move,
-        opponent_move: 'paper' as Move,
-        result: 'lose' as const,
-        rating_before: currentUser?.rating || 1200,
-        rating_change: -8,
-        rating_after: Math.max(0, (currentUser?.rating || 1200) - 8),
-        coins_change: -betAmount,
-        created_at: new Date().toISOString(),
-      };
-      onFinishRoomMatch(timeoutLossMatch);
+      // 10s selection timeout expired! Poll server for completed room state
+      api.getRoomState(room.room_code).then((updated) => {
+        setRoom(updated);
+        if (updated.status === 'completed' && !isRevealing) {
+          setIsRevealing(true);
+          setRevealTimeLeft(10);
+        }
+      }).catch(() => {});
       return;
     }
 
@@ -79,7 +69,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [room, activeTab, isRevealing, selectionTimeLeft, currentUser, onFinishRoomMatch]);
+  }, [room, activeTab, isRevealing, selectionTimeLeft]);
 
   // 1. Polling Room State every 2 seconds when in room lobby
   useEffect(() => {
@@ -723,6 +713,15 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
               <p className="text-xs text-slate-300 font-semibold">
                 Đang chờ đối thủ chọn xong... Kết quả sẽ tự động mở sau 10s!
               </p>
+
+              {/* COUNTDOWN TIMER BADGE FOR LOCKED STATE */}
+              <div className="card-glass p-3 flex items-center justify-center gap-3 border-amber-500/40 bg-amber-500/10 max-w-[260px] mx-auto mt-2">
+                <span className="animate-pulse text-xl">⏳</span>
+                <span className="text-xs font-extrabold text-amber-300">Đồng hồ chờ đối thủ:</span>
+                <span className={`text-2xl font-black ${selectionTimeLeft <= 3 ? 'text-red-400 animate-ping' : 'text-amber-400'}`}>
+                  {selectionTimeLeft}s
+                </span>
+              </div>
             </div>
           )}
         </div>

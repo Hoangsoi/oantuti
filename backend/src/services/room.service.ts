@@ -236,6 +236,41 @@ export async function getRoomState(userId: number, roomCode: string): Promise<Ro
   const isHost = Number(room.host_id) === Number(userId);
   const isGuest = Number(room.guest_id) === Number(userId);
 
+  // Auto-resolve timed out rooms if in 'ready' status for > 12 seconds
+  if (room.status === 'ready') {
+    const elapsedSec = (Date.now() - new Date(room.updated_at || room.created_at).getTime()) / 1000;
+    if (elapsedSec > 12) {
+      try {
+        const moves: Move[] = ['rock', 'paper', 'scissors'];
+        if (!room.host_move) {
+          const autoHostMove = moves[Math.floor(Math.random() * moves.length)];
+          await playRoomMove(room.host_id, cleanCode, autoHostMove);
+        }
+        if (!room.guest_move && room.guest_id) {
+          const autoGuestMove = moves[Math.floor(Math.random() * moves.length)];
+          await playRoomMove(room.guest_id, cleanCode, autoGuestMove);
+        }
+        // Re-fetch updated room state after auto-completing
+        const updatedRes = await query(
+          `SELECT r.*,
+                  (r.password IS NOT NULL AND r.password != '') as has_password,
+                  h.first_name as host_name, h.photo_url as host_avatar,
+                  g.first_name as guest_name, g.photo_url as guest_avatar
+           FROM rooms r
+           JOIN users h ON r.host_id = h.id
+           LEFT JOIN users g ON r.guest_id = g.id
+           WHERE r.room_code = $1`,
+          [cleanCode]
+        );
+        if (updatedRes.rows.length > 0) {
+          Object.assign(room, updatedRes.rows[0]);
+        }
+      } catch (err) {
+        console.error('Error auto-resolving timed out room:', err);
+      }
+    }
+  }
+
   const has_host_locked = !!room.host_move;
   const has_guest_locked = !!room.guest_move;
 
