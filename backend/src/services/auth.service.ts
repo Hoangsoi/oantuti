@@ -5,6 +5,25 @@ import { TelegramUser, User } from '../types';
 import { verifyTelegramInitData, getMockTelegramUser } from '../utils/telegram';
 import crypto from 'crypto';
 
+export function parseReferralCode(raw?: string): string {
+  if (!raw || typeof raw !== 'string') return '';
+  let str = raw.trim();
+  if (/^ref_ref_/i.test(str)) {
+    str = str.substring(4);
+  } else if (/^ref_/i.test(str)) {
+    const after = str.substring(4);
+    if (after.toUpperCase().startsWith('REF_')) {
+      str = after;
+    } else {
+      str = 'REF_' + after;
+    }
+  }
+  if (!str.toUpperCase().startsWith('REF_')) {
+    str = 'REF_' + str;
+  }
+  return str.trim().toUpperCase();
+}
+
 function generateReferralCode(telegramId: number): string {
   const hash = crypto.createHash('md5').update(`ref_${telegramId}_${Date.now()}`).digest('hex').substring(0, 8);
   return `REF_${telegramId}_${hash.toUpperCase()}`;
@@ -64,23 +83,31 @@ export async function authenticateTelegramUser(initData: string, refCode?: strin
     user = updateResult.rows[0];
 
     // If existing user has no referred_by set yet, allow binding referrer now
-    if (!user.referred_by && refCode) {
-      const cleanRefCode = refCode.replace(/^ref_/i, '').trim().toUpperCase();
+    const cleanRefCode = parseReferralCode(refCode);
+    if (!user.referred_by && cleanRefCode) {
       const referrerResult = await query<User>('SELECT id, telegram_id FROM users WHERE referral_code = $1', [cleanRefCode]);
-      if (referrerResult.rows.length > 0 && referrerResult.rows[0].telegram_id !== telegramUser.id) {
+      if (
+        referrerResult.rows.length > 0 &&
+        String(referrerResult.rows[0].telegram_id) !== String(telegramUser.id) &&
+        Number(referrerResult.rows[0].id) !== Number(user.id)
+      ) {
         const referrerId = referrerResult.rows[0].id;
         await query('UPDATE users SET referred_by = $1 WHERE id = $2', [referrerId, user.id]);
         await query('INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [referrerId, user.id]);
         user.referred_by = referrerId;
+        console.log(`[Referral] Gán thành công user ${user.id} (${user.first_name}) làm F1 cho referrer ${referrerId}`);
       }
     }
   } else {
     // Handle referral code during creation if provided
     let referrerId: number | null = null;
-    if (refCode) {
-      const cleanRefCode = refCode.replace(/^ref_/i, '').trim().toUpperCase();
+    const cleanRefCode = parseReferralCode(refCode);
+    if (cleanRefCode) {
       const referrerResult = await query<User>('SELECT id, telegram_id FROM users WHERE referral_code = $1', [cleanRefCode]);
-      if (referrerResult.rows.length > 0 && referrerResult.rows[0].telegram_id !== telegramUser.id) {
+      if (
+        referrerResult.rows.length > 0 &&
+        String(referrerResult.rows[0].telegram_id) !== String(telegramUser.id)
+      ) {
         referrerId = referrerResult.rows[0].id;
       }
     }
@@ -108,6 +135,7 @@ export async function authenticateTelegramUser(initData: string, refCode?: strin
         'INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
         [referrerId, user.id]
       );
+      console.log(`[Referral] Tạo mới thành công user ${user.id} (${user.first_name}) làm F1 cho referrer ${referrerId}`);
     }
   }
 

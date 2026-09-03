@@ -30,13 +30,8 @@ export function useGame() {
         rawRef = urlParams.get('startapp') || urlParams.get('tgWebAppStartParam') || urlParams.get('start_param') || urlParams.get('ref') || undefined;
       }
 
-      let refCode = rawRef;
-      if (refCode && typeof refCode === 'string') {
-        refCode = refCode.replace(/^ref_/i, '');
-      }
-
-      console.log('[API] POST /auth/telegram');
-      const { user: authUser } = await api.authTelegram(initData, refCode);
+      console.log('[API] POST /auth/telegram', { rawRef });
+      const { user: authUser } = await api.authTelegram(initData, rawRef);
       setUser(authUser);
     } catch (err: any) {
       console.error('[Auth Error]', err);
