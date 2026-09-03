@@ -75,6 +75,12 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
 
   useEffect(() => {
     loadWallet();
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadWallet();
+      }
+    }, 4000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleSwitchTab = (tab: 'deposit' | 'withdraw' | 'bank' | 'history') => {

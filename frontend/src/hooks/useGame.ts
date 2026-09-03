@@ -46,14 +46,40 @@ export function useGame() {
     initAuth();
   }, [initAuth]);
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     try {
       const updated = await api.getMe();
       setUser(updated);
     } catch (err) {
       console.error('Lỗi làm mới thông tin người dùng:', err);
     }
-  };
+  }, []);
+
+  // REAL-TIME AUTO REFRESH: Polling every 4 seconds when app is active so deposits, withdrawals, and referral commissions reflect live!
+  useEffect(() => {
+    if (!user) return;
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        refreshUser();
+      }
+    }, 4000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        refreshUser();
+      }
+    };
+
+    window.addEventListener('focus', handleVisibility);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleVisibility);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [user?.id, refreshUser]);
 
   // Submit move to backend without immediately redirecting
   const submitMove = async (move: Move): Promise<Match> => {
@@ -90,6 +116,7 @@ export function useGame() {
 
   const navigateTo = (page: ActivePage) => {
     triggerHapticImpact('light');
+    refreshUser();
     setActivePage(page);
   };
 

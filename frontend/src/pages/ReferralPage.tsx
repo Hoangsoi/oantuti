@@ -21,6 +21,12 @@ export const ReferralPage: React.FC = () => {
       }
     }
     loadReferrals();
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadReferrals();
+      }
+    }, 4000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleShare = () => {

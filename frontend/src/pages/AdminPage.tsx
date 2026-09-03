@@ -205,6 +205,15 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
         loadPaymentConfig();
         loadVipConfigs();
       }
+
+      const interval = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          if (activeTab === 'pending') loadTransactions();
+          else if (activeTab === 'stats') loadStats();
+        }
+      }, 4000);
+
+      return () => clearInterval(interval);
     }
   }, [activeTab, txFilter, isAdminAuthenticated]);
 
