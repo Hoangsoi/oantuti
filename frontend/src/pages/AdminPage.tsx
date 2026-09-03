@@ -888,15 +888,15 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
                           {m.player_name} ({m.player_move === 'rock' ? '✊ Đấm' : m.player_move === 'paper' ? '✋ Bao' : '✌️ Kéo'})
                         </div>
                         <div className="text-[10px] text-slate-400">
-                          Máy: {m.bot_move === 'rock' ? '✊' : m.bot_move === 'paper' ? '✋' : '✌️'} | {new Date(m.created_at).toLocaleTimeString('vi-VN')}
+                          {m.opponent_type === 'pvp' ? 'Đối thủ' : 'Máy'}: {(m.opponent_move || m.bot_move) === 'rock' ? '✊' : (m.opponent_move || m.bot_move) === 'paper' ? '✋' : '✌️'} | {new Date(m.created_at).toLocaleTimeString('vi-VN')}
                         </div>
                       </div>
 
                       <div className="text-right">
                         <span className={`px-2 py-0.5 rounded font-black text-[10px] ${
-                          m.result === 'win' ? 'bg-emerald-500/20 text-emerald-400' : m.result === 'loss' ? 'bg-red-500/20 text-red-400' : 'bg-slate-800 text-slate-300'
+                          m.result === 'win' ? 'bg-emerald-500/20 text-emerald-400' : (m.result === 'lose' || m.result === 'loss') ? 'bg-red-500/20 text-red-400' : 'bg-slate-800 text-slate-300'
                         }`}>
-                          {m.result === 'win' ? 'THẮNG 🏆' : m.result === 'loss' ? 'THUA ❌' : 'HÒA 🤝'}
+                          {m.result === 'win' ? 'THẮNG 🏆' : (m.result === 'lose' || m.result === 'loss') ? 'THUA ❌' : 'HÒA 🤝'}
                         </span>
                       </div>
                     </div>
