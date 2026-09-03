@@ -119,6 +119,34 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
     }
   }, [room?.status, room?.has_host_locked, room?.has_guest_locked, currentUser?.id]);
 
+  // Auto-expire waiting room immediately when host closes Telegram app, hides app, or unmounts
+  useEffect(() => {
+    if (!room || activeTab !== 'lobby' || room.status !== 'waiting') return;
+    const isHostUser = currentUser ? Number(room.host_id) === Number(currentUser.id) : false;
+    if (!isHostUser) return;
+
+    const handleExitLeave = () => {
+      api.leaveRoomBeacon(room.room_code);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        handleExitLeave();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleExitLeave);
+    window.addEventListener('pagehide', handleExitLeave);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      handleExitLeave(); // Instantly expire waiting room when navigating away
+      window.removeEventListener('beforeunload', handleExitLeave);
+      window.removeEventListener('pagehide', handleExitLeave);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [room?.room_code, room?.status, activeTab, currentUser?.id]);
+
   // 2. Opponent Emoji Shuffling Animation during 10s Reveal
   useEffect(() => {
     if (!isRevealing) return;

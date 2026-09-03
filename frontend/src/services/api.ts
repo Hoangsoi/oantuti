@@ -204,6 +204,25 @@ export const api = {
     });
   },
 
+  leaveRoomBeacon: (roomCode: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      if (navigator.sendBeacon) {
+        const blob = new Blob([JSON.stringify({})], { type: 'application/json' });
+        navigator.sendBeacon(`/api/room/${roomCode}/leave`, blob);
+      } else {
+        fetch(`/api/room/${roomCode}/leave`, {
+          method: 'POST',
+          headers,
+          keepalive: true,
+        }).catch(() => {});
+      }
+    } catch (e) {}
+  },
+
   // Wallet APIs
   getWalletInfo: async () => {
     return request<WalletData>('/wallet/info');

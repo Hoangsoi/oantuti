@@ -84,6 +84,19 @@ export async function ensureVirtualRooms(): Promise<void> {
 }
 
 export async function getWaitingRooms(): Promise<Room[]> {
+  // Auto-expire waiting rooms where host has exited or stopped polling for > 30 seconds
+  try {
+    await query(
+      `UPDATE rooms
+       SET status = 'expired', updated_at = CURRENT_TIMESTAMP
+       WHERE status = 'waiting'
+         AND is_bot_room = false
+         AND updated_at < (CURRENT_TIMESTAMP - INTERVAL '30 seconds')`
+    );
+  } catch (err) {
+    console.error('Lỗi tự động thu hồi phòng chờ bỏ dở:', err);
+  }
+
   await ensureVirtualRooms();
 
   const res = await query(
@@ -282,6 +295,10 @@ export async function getRoomState(userId: number, roomCode: string): Promise<Ro
         console.error('Error auto-resolving timed out room:', err);
       }
     }
+  }
+
+  if (isHost && room.status === 'waiting') {
+    query("UPDATE rooms SET updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND status = 'waiting'", [room.id]).catch(() => {});
   }
 
   const has_host_locked = !!room.host_move;
@@ -545,9 +562,11 @@ export async function leaveRoom(userId: number, roomCode: string): Promise<void>
   if (roomRes.rows.length === 0) return;
   const room = roomRes.rows[0];
 
-  if (room.host_id === userId) {
+  if (Number(room.host_id) === Number(userId)) {
+    // Host leaves -> immediately expire room so it is removed from lobby waiting list
     await query("UPDATE rooms SET status = 'expired', updated_at = CURRENT_TIMESTAMP WHERE id = $1", [room.id]);
-  } else if (room.guest_id === userId) {
+  } else if (Number(room.guest_id) === Number(userId)) {
+    // Guest leaves -> revert room back to waiting
     await query("UPDATE rooms SET guest_id = NULL, status = 'waiting', host_move = NULL, guest_move = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1", [room.id]);
   }
 }
