@@ -76,6 +76,7 @@ export function useGame() {
   // Called when 10-second reveal countdown finishes
   const showResult = (match: Match) => {
     setCurrentMatch(match);
+    refreshUser();
     if (match.result === 'win') {
       triggerHapticNotification('success');
     } else if (match.result === 'lose') {

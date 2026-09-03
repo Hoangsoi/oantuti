@@ -5,6 +5,7 @@ import { Trophy, Swords, Flame, CheckCircle, XCircle, MinusCircle, Percent, Cale
 
 interface ProfilePageProps {
   user: User | null;
+  onUserUpdated?: (updatedUser: User) => void;
   onNavigate?: (page: ActivePage) => void;
 }
 
@@ -14,15 +15,21 @@ const MOVE_EMOJI: Record<Move, { emoji: string; title: string }> = {
   scissors: { emoji: '✌️', title: 'KÉO' },
 };
 
-export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onNavigate }) => {
+export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onUserUpdated, onNavigate }) => {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loadingMatches, setLoadingMatches] = useState<boolean>(true);
 
   const fetchHistory = async () => {
     setLoadingMatches(true);
     try {
-      const res = await api.getMatches(20);
-      setMatches(res || []);
+      const [resMatches, updatedUser] = await Promise.all([
+        api.getMatches(50),
+        api.getMe().catch(() => null),
+      ]);
+      setMatches(resMatches || []);
+      if (updatedUser && onUserUpdated) {
+        onUserUpdated(updatedUser);
+      }
     } catch (err) {
       console.error('Không thể tải lịch sử trận đấu:', err);
     } finally {
@@ -39,7 +46,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onNavigate }) =>
   const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Người chơi';
   const avatarUrl = user.photo_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.telegram_id}`;
 
-  const winRate = user.total_matches > 0 ? Math.round((user.wins / user.total_matches) * 100) : 0;
+  const totalMatches = Math.max(user.total_matches || 0, matches.length);
+  const winsCount = (user.wins || 0) > 0 ? user.wins : matches.filter((m) => m.result === 'win').length;
+  const lossesCount = (user.losses || 0) > 0 ? user.losses : matches.filter((m) => m.result === 'lose').length;
+  const drawsCount = (user.draws || 0) > 0 ? user.draws : matches.filter((m) => m.result === 'draw').length;
+  const winRate = totalMatches > 0 ? Math.round((winsCount / totalMatches) * 100) : 0;
   const joinDate = new Date(user.created_at).toLocaleDateString('vi-VN');
 
   return (
@@ -87,7 +98,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onNavigate }) =>
           </div>
           <div>
             <div className="text-[11px] font-bold text-slate-400 uppercase">Tổng số trận</div>
-            <div className="text-lg font-black text-white">{user.total_matches}</div>
+            <div className="text-lg font-black text-white">{totalMatches}</div>
           </div>
         </div>
 
@@ -97,7 +108,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onNavigate }) =>
           </div>
           <div>
             <div className="text-[11px] font-bold text-slate-400 uppercase">Số trận thắng</div>
-            <div className="text-lg font-black text-emerald-400">{user.wins}</div>
+            <div className="text-lg font-black text-emerald-400">{winsCount}</div>
           </div>
         </div>
 
@@ -107,7 +118,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onNavigate }) =>
           </div>
           <div>
             <div className="text-[11px] font-bold text-slate-400 uppercase">Số trận thua</div>
-            <div className="text-lg font-black text-red-400">{user.losses}</div>
+            <div className="text-lg font-black text-red-400">{lossesCount}</div>
           </div>
         </div>
 
@@ -117,7 +128,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onNavigate }) =>
           </div>
           <div>
             <div className="text-[11px] font-bold text-slate-400 uppercase">Số trận hòa</div>
-            <div className="text-lg font-black text-slate-300">{user.draws}</div>
+            <div className="text-lg font-black text-slate-300">{drawsCount}</div>
           </div>
         </div>
 

@@ -189,7 +189,7 @@ export const App: React.FC = () => {
       case 'leaderboard':
         return <LeaderboardPage />;
       case 'profile':
-        return <ProfilePage user={user} onNavigate={navigateTo} />;
+        return <ProfilePage user={user} onUserUpdated={(updatedUser) => setUser(updatedUser)} onNavigate={navigateTo} />;
       case 'referral':
         return <ReferralPage />;
       case 'rewards':
