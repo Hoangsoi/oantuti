@@ -852,6 +852,14 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
                   <div className="text-[10px] font-bold text-slate-400 uppercase">TỔNG PHẾ THU (5%)</div>
                   <div className="text-lg font-black text-emerald-400">{(gameStats.totalRakeCollected || 0).toLocaleString()} Xu</div>
                 </div>
+
+                <div className="card-glass p-3.5 border-cyan-500/40 bg-cyan-950/20 text-center space-y-1 col-span-2">
+                  <div className="text-[10px] font-bold text-cyan-300 uppercase tracking-wider">💰 TIỀN DƯ (KHÁCH THUA BOT & TK CÔNG TY)</div>
+                  <div className="text-xl font-black text-cyan-400">
+                    +{(gameStats.totalBotCompanySurplus || 0).toLocaleString()} Xu
+                  </div>
+                  <div className="text-[9.5px] text-slate-400 font-medium">Số tiền khách bị thua khi chơi với Bot hoặc Tài khoản công ty</div>
+                </div>
               </div>
 
               {/* Net House Profit Breakdown Card */}
@@ -862,6 +870,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
                 </div>
 
                 <div className="flex items-center justify-between text-xs font-bold border-b border-emerald-500/20 pb-2">
+                  <span className="text-slate-300">Tiền dư (Khách thua Bot / TK Công Ty):</span>
+                  <span className="font-black text-cyan-400">+{(gameStats.totalBotCompanySurplus || 0).toLocaleString()} Xu</span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs font-bold border-b border-emerald-500/20 pb-2">
                   <span className="text-slate-300">Đã trích chi trả Hoa Hồng Đại Lý (F1-F5):</span>
                   <span className="font-black text-purple-400">-{(gameStats.totalCommissionsPaid || 0).toLocaleString()} Xu</span>
                 </div>
@@ -869,7 +882,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
                 <div className="flex items-center justify-between text-xs font-black pt-1">
                   <span className="text-amber-300">💵 PHẾ RÒNG THỰC NHẬN (LỢI NHUẬN):</span>
                   <span className="text-sm font-black text-amber-400 bg-amber-500/20 px-2.5 py-1 rounded-xl border border-amber-500/40 shadow-sm">
-                    +{(gameStats.netHouseProfit !== undefined ? gameStats.netHouseProfit : ((gameStats.totalRakeCollected || 0) - (gameStats.totalCommissionsPaid || 0))).toLocaleString()} Xu
+                    +{(gameStats.netHouseProfit !== undefined ? gameStats.netHouseProfit : ((gameStats.totalRakeCollected || 0) + (gameStats.totalBotCompanySurplus || 0) - (gameStats.totalCommissionsPaid || 0))).toLocaleString()} Xu
                   </span>
                 </div>
               </div>

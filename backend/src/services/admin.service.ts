@@ -307,8 +307,41 @@ export async function getGameStats() {
     totalCommissionsPaid = Number(commissionStats.rows[0]?.total_commissions || 0);
   } catch (e) {}
 
+  let totalBotCompanySurplus = 0;
+  try {
+    const surplusStats = await query(`
+      SELECT 
+        COALESCE(SUM(
+          CASE 
+            WHEN (h.telegram_id > 0 AND COALESCE(h.is_company_account, FALSE) = FALSE)
+                 AND (r.is_bot_room = TRUE OR g.telegram_id < 0 OR COALESCE(g.is_company_account, FALSE) = TRUE) THEN
+              CASE 
+                WHEN r.winner_id = r.guest_id THEN r.bet_amount
+                WHEN r.winner_id = r.host_id THEN -(r.bet_amount - r.fee_amount)
+                ELSE 0
+              END
+            WHEN (r.is_bot_room = TRUE OR h.telegram_id < 0 OR COALESCE(h.is_company_account, FALSE) = TRUE)
+                 AND (g.telegram_id > 0 AND COALESCE(g.is_company_account, FALSE) = FALSE) THEN
+              CASE 
+                WHEN r.winner_id = r.host_id THEN r.bet_amount
+                WHEN r.winner_id = r.guest_id THEN -(r.bet_amount - r.fee_amount)
+                ELSE 0
+              END
+            ELSE 0
+          END
+        ), 0) AS total_surplus
+      FROM rooms r
+      JOIN users h ON r.host_id = h.id
+      LEFT JOIN users g ON r.guest_id = g.id
+      WHERE r.status = 'completed' AND r.bet_amount > 0
+    `);
+    totalBotCompanySurplus = Number(surplusStats.rows[0]?.total_surplus || 0);
+  } catch (e) {
+    console.error('Lỗi tính tiền dư bot/công ty:', e);
+  }
+
   const totalRakeCollected = Number(r.total_rake_collected || 0);
-  const netHouseProfit = Math.max(0, totalRakeCollected - totalCommissionsPaid);
+  const netHouseProfit = totalRakeCollected + totalBotCompanySurplus - totalCommissionsPaid;
 
   const totalGames = Number(u.total_wins || 0) + Number(u.total_losses || 0) + Number(u.total_draws || 0);
   const winRate = totalGames > 0 ? ((Number(u.total_wins || 0) / totalGames) * 100).toFixed(1) : '0';
@@ -323,6 +356,7 @@ export async function getGameStats() {
     totalMatches: Number(m.total_matches || 0),
     totalRakeCollected,
     totalCommissionsPaid,
+    totalBotCompanySurplus,
     netHouseProfit,
     totalRoomsPlayed: Number(r.total_rooms_played || 0),
     recentMatches: recentMatches.rows,
