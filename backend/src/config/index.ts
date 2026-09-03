@@ -14,4 +14,5 @@ export const config = {
   databaseUrl: process.env.DATABASE_URL || NEON_DEFAULT_URL,
   adminTelegramId: process.env.ADMIN_TELEGRAM_ID || '8780377211',
   adminTelegramUsername: process.env.ADMIN_TELEGRAM_USERNAME || 'ottadmin2026',
+  botUsername: (process.env.BOT_USERNAME || process.env.VITE_BOT_USERNAME || 'OanTuTiBot').replace(/^@/, ''),
 };

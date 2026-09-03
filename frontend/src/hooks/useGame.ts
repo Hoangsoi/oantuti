@@ -23,10 +23,16 @@ export function useGame() {
     try {
       // Safely poll and wait for Telegram WebApp SDK & initData initialization
       const { tg, initData } = await waitForTelegramSdk(20, 100);
-      let refCode = tg?.initDataUnsafe?.start_param;
+      let rawRef = tg?.initDataUnsafe?.start_param;
 
-      if (refCode && refCode.startsWith('ref_')) {
-        refCode = refCode.replace('ref_', '');
+      if (!rawRef && typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        rawRef = urlParams.get('startapp') || urlParams.get('tgWebAppStartParam') || urlParams.get('start_param') || urlParams.get('ref') || undefined;
+      }
+
+      let refCode = rawRef;
+      if (refCode && typeof refCode === 'string') {
+        refCode = refCode.replace(/^ref_/i, '');
       }
 
       console.log('[API] POST /auth/telegram');

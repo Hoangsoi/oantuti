@@ -1,4 +1,5 @@
 import { query } from '../database';
+import { getBotUsername } from './bot.service';
 import { ReferralStat, ReferralTierStat, User } from '../types';
 
 const TIER_RATES = [
@@ -11,8 +12,8 @@ const TIER_RATES = [
 
 export async function getUserReferrals(user: User): Promise<ReferralStat> {
   const referralCode = user.referral_code;
-  const botUsername = process.env.BOT_USERNAME || 'OanTuTiBot';
-  const referralLink = `https://t.me/${botUsername}?startapp=ref_${referralCode}`;
+  const botUsername = await getBotUsername();
+  const referralLink = `https://t.me/${botUsername}?start=ref_${referralCode}`;
 
   // Direct F1 referrals
   const referredUsersRes = await query(

@@ -281,8 +281,8 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
 
   const handleShareRoom = () => {
     if (!room) return;
-    const botName = import.meta.env.VITE_BOT_USERNAME || 'OanTuTiBot';
-    const roomLink = `https://t.me/${botName}?startapp=room_${room.room_code}`;
+    const botName = (import.meta.env.VITE_BOT_USERNAME || 'OanTuTiBot').replace(/^@/, '');
+    const roomLink = `https://t.me/${botName}?start=room_${room.room_code}`;
     const betText = room.bet_amount > 0 ? `💰 Mức cược: ${room.bet_amount.toLocaleString()} Xu` : '🆓 Phòng tự do';
     const shareText = `⚔️ VÀO PHÒNG ĐẤU OẲN TÙ TÌ CÙNG TÔI!\n🔑 Mã phòng: ${room.room_code}\n${betText}\n👉 Bấm link để tham gia ngay:`;
     shareTelegramLink(roomLink, shareText);

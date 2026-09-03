@@ -42,7 +42,28 @@ function makeTelegramRequest(method: string, payload: any, requestTimeoutMs: num
   });
 }
 
+let cachedBotUsername: string | null = null;
+
+export async function getBotUsername(): Promise<string> {
+  if (cachedBotUsername) return cachedBotUsername;
+  if (config.botToken && !config.botToken.includes('AAEXAMPLE')) {
+    try {
+      const res = await makeTelegramRequest('getMe', {});
+      if (res && res.ok && res.result?.username) {
+        const username = res.result.username as string;
+        cachedBotUsername = username;
+        console.log(`🤖 [Telegram Bot] Đã tự động nhận diện Bot Username từ Telegram: @${cachedBotUsername}`);
+        return username;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+  return config.botUsername || 'OanTuTiBot';
+}
+
 async function registerBotCommands() {
+  await getBotUsername();
   const commands = [
     { command: 'start', description: '🎮 Mở Game Oẳn Tù Tì Mini App' },
     { command: 'play', description: '⚔️ Vào Đấu Trường ngay' },

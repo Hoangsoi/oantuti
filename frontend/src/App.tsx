@@ -50,10 +50,14 @@ export const App: React.FC = () => {
   const [isTopupOpen, setIsTopupOpen] = useState<boolean>(false);
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
 
-  // Check if opened from Telegram room deep link (startapp=room_839210)
+  // Check if opened from Telegram room deep link (startapp=room_839210 or ?startapp=room_839210)
   useEffect(() => {
     const tg = getTelegramWebApp();
-    const startParam = tg?.initDataUnsafe?.start_param;
+    let startParam = tg?.initDataUnsafe?.start_param;
+    if (!startParam && typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      startParam = urlParams.get('startapp') || urlParams.get('tgWebAppStartParam') || urlParams.get('start_param') || undefined;
+    }
     if (startParam && startParam.startsWith('room_')) {
       const roomCode = startParam.replace('room_', '');
       api.joinRoom(roomCode).then(() => {

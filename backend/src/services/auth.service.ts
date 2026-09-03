@@ -62,11 +62,23 @@ export async function authenticateTelegramUser(initData: string, refCode?: strin
       ]
     );
     user = updateResult.rows[0];
+
+    // If existing user has no referred_by set yet, allow binding referrer now
+    if (!user.referred_by && refCode) {
+      const cleanRefCode = refCode.replace(/^ref_/i, '').trim().toUpperCase();
+      const referrerResult = await query<User>('SELECT id, telegram_id FROM users WHERE referral_code = $1', [cleanRefCode]);
+      if (referrerResult.rows.length > 0 && referrerResult.rows[0].telegram_id !== telegramUser.id) {
+        const referrerId = referrerResult.rows[0].id;
+        await query('UPDATE users SET referred_by = $1 WHERE id = $2', [referrerId, user.id]);
+        await query('INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [referrerId, user.id]);
+        user.referred_by = referrerId;
+      }
+    }
   } else {
     // Handle referral code during creation if provided
     let referrerId: number | null = null;
     if (refCode) {
-      const cleanRefCode = refCode.trim().toUpperCase();
+      const cleanRefCode = refCode.replace(/^ref_/i, '').trim().toUpperCase();
       const referrerResult = await query<User>('SELECT id, telegram_id FROM users WHERE referral_code = $1', [cleanRefCode]);
       if (referrerResult.rows.length > 0 && referrerResult.rows[0].telegram_id !== telegramUser.id) {
         referrerId = referrerResult.rows[0].id;
