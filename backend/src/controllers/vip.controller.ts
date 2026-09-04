@@ -15,7 +15,7 @@ export async function claimMonthlyVipRewardHandler(req: Request, res: Response):
   try {
     const userId = (req as any).user.id;
     const result = await claimMonthlyVipReward(userId);
-    res.json(result);
+    res.json({ success: true, data: result });
   } catch (error: any) {
     res.status(400).json({ success: false, message: error.message || 'Không thể nhận thưởng VIP hàng tháng' });
   }

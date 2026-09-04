@@ -151,12 +151,13 @@ export async function claimMonthlyVipReward(userId: number) {
 
     await client.query('COMMIT');
 
-    const updatedUserRes = await query('SELECT coins FROM users WHERE id = $1', [userId]);
+    const updatedUserRes = await query('SELECT * FROM users WHERE id = $1', [userId]);
     return {
       success: true,
       rewardCoins,
       newCoins: Number(updatedUserRes.rows[0].coins),
       claimedMonth: currentMonth,
+      updatedUser: updatedUserRes.rows[0],
     };
   } catch (error) {
     await client.query('ROLLBACK');

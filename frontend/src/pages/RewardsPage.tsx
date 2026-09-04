@@ -47,10 +47,10 @@ export const RewardsPage: React.FC<RewardsPageProps> = ({ onRewardClaimed }) => 
       const res = await api.claimVipReward();
       playCoinSound();
       triggerHapticNotification('success');
-      alert(`🎉 Nhận thành công +${res.rewardCoins.toLocaleString()} Xu Lương VIP tháng ${res.claimedMonth}!`);
+      alert(`🎉 Nhận thành công +${(res?.rewardCoins || 0).toLocaleString()} Xu Lương VIP tháng ${res?.claimedMonth || ''}!`);
       fetchRewards();
-      if (res.newCoins !== undefined) {
-        onRewardClaimed({ coins: res.newCoins } as User);
+      if (res?.updatedUser) {
+        onRewardClaimed(res.updatedUser);
       }
     } catch (err: any) {
       triggerHapticNotification('error');
