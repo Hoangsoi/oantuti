@@ -859,6 +859,12 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
                             </span>
                           </div>
                         </div>
+                        {tx.admin_note && (
+                          <div className="text-[10px] font-semibold text-slate-400 bg-slate-950/80 px-3 py-1 rounded-lg border border-slate-800 flex items-center justify-between mt-2">
+                            <span className="text-slate-500">Ghi chú Admin:</span>
+                            <span className="text-amber-300 font-bold">{tx.admin_note}</span>
+                          </div>
+                        )}
                       </div>
                     );
                   })}

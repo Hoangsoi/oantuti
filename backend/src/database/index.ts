@@ -56,6 +56,9 @@ export const initDatabase = async () => {
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS total_wager_amount NUMERIC(18, 4) DEFAULT 0 NOT NULL');
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS vip_level INT DEFAULT 0 NOT NULL');
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS last_vip_reward_claimed_month VARCHAR(7) DEFAULT NULL');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code VARCHAR(64) UNIQUE');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by INT REFERENCES users(id) ON DELETE SET NULL');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_users_referral_code ON users (referral_code)');
     await pool.query('ALTER TABLE rooms ADD COLUMN IF NOT EXISTS bet_amount INT DEFAULT 0 NOT NULL');
     await pool.query('ALTER TABLE rooms ADD COLUMN IF NOT EXISTS fee_amount INT DEFAULT 0 NOT NULL');
     await pool.query('ALTER TABLE rooms ADD COLUMN IF NOT EXISTS is_bot_room BOOLEAN DEFAULT false NOT NULL');

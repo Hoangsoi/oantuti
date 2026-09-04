@@ -206,17 +206,22 @@ export const api = {
 
   leaveRoomBeacon: (roomCode: string) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('oantuti_token') || authToken;
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
+      const endpoint = token
+        ? `${API_BASE_URL}/room/${roomCode}/leave?token=${encodeURIComponent(token)}`
+        : `${API_BASE_URL}/room/${roomCode}/leave`;
+
       if (navigator.sendBeacon) {
-        const blob = new Blob([JSON.stringify({})], { type: 'application/json' });
-        navigator.sendBeacon(`/api/room/${roomCode}/leave`, blob);
+        const blob = new Blob([JSON.stringify({ token })], { type: 'application/json' });
+        navigator.sendBeacon(endpoint, blob);
       } else {
-        fetch(`/api/room/${roomCode}/leave`, {
+        fetch(endpoint, {
           method: 'POST',
           headers,
+          body: JSON.stringify({ token }),
           keepalive: true,
         }).catch(() => {});
       }

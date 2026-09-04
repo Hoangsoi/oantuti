@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS users (
     total_wager_amount NUMERIC(18, 4) DEFAULT 0 NOT NULL,
     vip_level INT DEFAULT 0 NOT NULL,
     last_vip_reward_claimed_month VARCHAR(7),
+    referral_code VARCHAR(64) UNIQUE,
+    referred_by INT REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
 );

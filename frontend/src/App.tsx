@@ -52,6 +52,8 @@ export const App: React.FC = () => {
 
   // Check if opened from Telegram room deep link (startapp=room_839210 or ?startapp=room_839210)
   useEffect(() => {
+    if (!user) return;
+
     const tg = getTelegramWebApp();
     let startParam = tg?.initDataUnsafe?.start_param;
     if (!startParam && typeof window !== 'undefined') {
@@ -60,13 +62,14 @@ export const App: React.FC = () => {
     }
     if (startParam && startParam.startsWith('room_')) {
       const roomCode = startParam.replace('room_', '');
-      api.joinRoom(roomCode).then(() => {
+      api.joinRoom(roomCode).then((joinedRoom) => {
+        setCurrentRoom(joinedRoom);
         navigateTo('room');
       }).catch((e) => {
         console.error('Lỗi khi tự động tham gia phòng từ link:', e);
       });
     }
-  }, []);
+  }, [user?.id]);
 
   if (loading && !user) {
     return (

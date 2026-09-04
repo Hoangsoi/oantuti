@@ -255,10 +255,10 @@ export async function getRoomState(userId: number, roomCode: string): Promise<Ro
   const isHost = Number(room.host_id) === Number(userId);
   const isGuest = Number(room.guest_id) === Number(userId);
 
-  // Auto-resolve timed out rooms if in 'ready' status for > 12 seconds: punish timed-out player with a LOSS!
+  // Auto-resolve timed out rooms if in 'ready' status for >= 10 seconds: punish timed-out player with a LOSS!
   if (room.status === 'ready') {
     const elapsedSec = (Date.now() - new Date(room.updated_at || room.created_at).getTime()) / 1000;
-    if (elapsedSec > 12) {
+    if (elapsedSec >= 10) {
       try {
         if (room.host_move && !room.guest_move && room.guest_id) {
           // Guest timed out -> assign Guest a losing move so Guest loses!

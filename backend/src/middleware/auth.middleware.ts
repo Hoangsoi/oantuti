@@ -7,12 +7,20 @@ import { sendError } from '../utils/response';
 
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
   try {
+    let token: string | undefined;
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    } else if (req.query && typeof req.query.token === 'string') {
+      token = req.query.token;
+    } else if (req.body && typeof req.body.token === 'string') {
+      token = req.body.token;
+    }
+
+    if (!token) {
       return sendError(res, 'Vui lòng đăng nhập để thực hiện thao tác này', 401);
     }
 
-    const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, config.jwtSecret) as AuthJwtPayload;
 
     if (!decoded || !decoded.userId) {
