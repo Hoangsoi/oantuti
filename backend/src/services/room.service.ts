@@ -19,12 +19,90 @@ const VIRTUAL_BOT_PROFILES = [
   { name: 'Đức Anh', tgId: -113, seed: 'duc_anh_16' },
   { name: 'Hương Giang', tgId: -114, seed: 'huong_giang_18' },
   { name: 'Quốc Bảo', tgId: -115, seed: 'quoc_bao_20' },
+  { name: 'Tuấn Kiệt', tgId: -116, seed: 'tuan_kiet_22' },
+  { name: 'Thanh Hằng', tgId: -117, seed: 'thanh_hang_24' },
+  { name: 'Quang Huy', tgId: -118, seed: 'quang_huy_26' },
+  { name: 'Mỹ Duyên', tgId: -119, seed: 'my_duyen_28' },
+  { name: 'Anh Tuấn', tgId: -120, seed: 'anh_tuan_30' },
+  { name: 'Yến Nhi', tgId: -121, seed: 'yen_nhi_32' },
+  { name: 'Minh Trí', tgId: -122, seed: 'minh_tri_34' },
+  { name: 'Ánh Tuyết', tgId: -123, seed: 'anh_tuyet_36' },
+  { name: 'Hữu Thắng', tgId: -124, seed: 'huu_thang_38' },
+  { name: 'Kim Ngân', tgId: -125, seed: 'kim_ngan_40' },
+  { name: 'Đăng Khoa', tgId: -126, seed: 'dang_khoa_42' },
+  { name: 'Bảo Ngọc', tgId: -127, seed: 'bao_ngoc_44' },
+  { name: 'Văn Khoa', tgId: -128, seed: 'van_khoa_46' },
+  { name: 'Tuyết Nhi', tgId: -129, seed: 'tuyet_nhi_48' },
+  { name: 'Gia Bảo', tgId: -130, seed: 'gia_bao_50' },
+  { name: 'Thảo Nguyên', tgId: -131, seed: 'thao_nguyen_52' },
+  { name: 'Tấn Phát', tgId: -132, seed: 'tan_phat_54' },
+  { name: 'Thanh Trúc', tgId: -133, seed: 'thanh_truc_56' },
+  { name: 'Hùng Cường', tgId: -134, seed: 'hung_cuong_58' },
+  { name: 'Phương Linh', tgId: -135, seed: 'phuong_linh_60' },
+  { name: 'Việt Anh', tgId: -136, seed: 'viet_anh_62' },
+  { name: 'Khánh An', tgId: -137, seed: 'khanh_an_64' },
+  { name: 'Huy Hoàng', tgId: -138, seed: 'huy_hoang_66' },
+  { name: 'Trâm Anh', tgId: -139, seed: 'tram_anh_68' },
+  { name: 'Trung Hiếu', tgId: -140, seed: 'trung_hieu_70' },
 ];
 
-const BET_TIERS = [0, 5000, 10000, 20000, 50000, 100000];
+const BET_TIERS = [
+  0,        // Miễn phí
+  0,        // Miễn phí
+  1000,     // < 10k
+  2000,     // < 10k
+  5000,     // < 10k
+  10000,    // 10k - 50k
+  20000,    // 10k - 50k
+  30000,    // 10k - 50k
+  50000,    // 10k - 50k
+  100000,   // > 50k
+  200000,   // > 50k
+  500000,   // > 50k
+  1000000,  // > 50k
+];
 
 function generateRoomCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+function generateBotRoomName(profileName: string, betAmount: number): string {
+  const titlesForFree = [
+    `Phòng của ${profileName}`,
+    `Giao lưu 1vs1 vui vẻ`,
+    `Solo tập luyện không cược`,
+    `Phòng tự do của ${profileName}`,
+  ];
+
+  const titlesForSmall = [
+    `Solo nhẹ nhàng ${betAmount.toLocaleString()} Xu`,
+    `Phòng của ${profileName}`,
+    `Vào làm trận ${betAmount.toLocaleString()} Xu`,
+    `Giao lưu vui vẻ ${betAmount.toLocaleString()} Xu`,
+  ];
+
+  const titlesForMedium = [
+    `Thách đấu ${betAmount.toLocaleString()} Xu`,
+    `Vào gáy đi bạn ơi (${betAmount.toLocaleString()} Xu)`,
+    `Phòng cược ${betAmount.toLocaleString()} Xu uy tín`,
+    `Phòng của ${profileName}`,
+    `Solo gánh kèo ${betAmount.toLocaleString()} Xu`,
+  ];
+
+  const titlesForHigh = [
+    `💥 TAY TO VÀO ${(betAmount / 1000).toLocaleString()}K XU`,
+    `🔥 THÁCH ĐẤU CAO THỦ ${(betAmount / 1000).toLocaleString()}K`,
+    `💎 VIP Arena ${(betAmount / 1000).toLocaleString()}K Xu`,
+    `🏆 Đã tay thì vào ${(betAmount / 1000).toLocaleString()}K`,
+    `Phòng cược khủng của ${profileName}`,
+  ];
+
+  let pool = titlesForSmall;
+  if (betAmount === 0) pool = titlesForFree;
+  else if (betAmount >= 10000 && betAmount <= 50000) pool = titlesForMedium;
+  else if (betAmount > 50000) pool = titlesForHigh;
+
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 async function getOrCreateBotUser(profile: typeof VIRTUAL_BOT_PROFILES[0]): Promise<User> {
@@ -59,7 +137,7 @@ export async function ensureVirtualRooms(): Promise<void> {
     }
 
     const currentCount = activeBotHostIds.size;
-    const TARGET_BOT_ROOMS = Math.min(6, VIRTUAL_BOT_PROFILES.length);
+    const TARGET_BOT_ROOMS = Math.min(22, VIRTUAL_BOT_PROFILES.length);
 
     if (currentCount < TARGET_BOT_ROOMS && availableProfiles.length > 0) {
       const needed = TARGET_BOT_ROOMS - currentCount;
@@ -69,7 +147,7 @@ export async function ensureVirtualRooms(): Promise<void> {
         const { profile, botUser } = shuffled[i];
         const betAmount = BET_TIERS[Math.floor(Math.random() * BET_TIERS.length)];
         let roomCode = generateRoomCode();
-        const roomName = `Phòng của ${profile.name}`;
+        const roomName = generateBotRoomName(profile.name, betAmount);
 
         await query(
           `INSERT INTO rooms (room_code, host_id, bet_amount, room_name, password, status, is_bot_room)
@@ -84,14 +162,17 @@ export async function ensureVirtualRooms(): Promise<void> {
 }
 
 export async function getWaitingRooms(): Promise<Room[]> {
-  // Auto-expire waiting rooms where host has exited or stopped polling for > 30 seconds
+  // Auto-expire waiting rooms where host has exited or stopped polling for > 30 seconds (or old bot rooms > 3 minutes for dynamic lobby rotation)
   try {
     await query(
       `UPDATE rooms
        SET status = 'expired', updated_at = CURRENT_TIMESTAMP
        WHERE status = 'waiting'
-         AND is_bot_room = false
-         AND updated_at < (CURRENT_TIMESTAMP - INTERVAL '30 seconds')`
+         AND (
+           (is_bot_room = false AND updated_at < (CURRENT_TIMESTAMP - INTERVAL '30 seconds'))
+           OR
+           (is_bot_room = true AND created_at < (CURRENT_TIMESTAMP - INTERVAL '3 minutes'))
+         )`
     );
   } catch (err) {
     console.error('Lỗi tự động thu hồi phòng chờ bỏ dở:', err);
