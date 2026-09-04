@@ -141,7 +141,6 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      handleExitLeave(); // Instantly expire waiting room when navigating away
       window.removeEventListener('beforeunload', handleExitLeave);
       window.removeEventListener('pagehide', handleExitLeave);
       document.removeEventListener('visibilitychange', handleVisibilityChange);

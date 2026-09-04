@@ -101,11 +101,11 @@ export async function getWaitingRooms(): Promise<Room[]> {
 
   const res = await query(
     `SELECT r.*,
-            false as has_password,
+            (r.password IS NOT NULL AND r.password != '') as has_password,
             h.first_name as host_name, h.photo_url as host_avatar
      FROM rooms r
      JOIN users h ON r.host_id = h.id
-     WHERE r.status = 'waiting' AND (r.password IS NULL OR r.password = '')
+     WHERE r.status = 'waiting'
      ORDER BY r.created_at DESC
      LIMIT 50`
   );
