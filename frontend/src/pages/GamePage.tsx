@@ -37,6 +37,8 @@ export const GamePage: React.FC<GamePageProps> = ({
   const [shuffleIndex, setShuffleIndex] = useState<number>(0);
   const [matchResult, setMatchResult] = useState<Match | null>(null);
 
+  const hasFinishedRef = React.useRef<boolean>(false);
+
   // 1. 10-Second Selection Timer
   useEffect(() => {
     if (selectedMove || isRevealing || isLoading) return;
@@ -56,7 +58,10 @@ export const GamePage: React.FC<GamePageProps> = ({
         coins_change: -100,
         created_at: new Date().toISOString(),
       };
-      onFinishReveal(timeoutLossMatch);
+      if (!hasFinishedRef.current) {
+        hasFinishedRef.current = true;
+        onFinishReveal(timeoutLossMatch);
+      }
       return;
     }
 
@@ -65,7 +70,7 @@ export const GamePage: React.FC<GamePageProps> = ({
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [timeLeft, selectedMove, isRevealing, isLoading]);
+  }, [timeLeft, selectedMove, isRevealing, isLoading, onFinishReveal]);
 
   // 2. Opponent Emoji Shuffling Animation during 10s Reveal
   useEffect(() => {
@@ -84,7 +89,9 @@ export const GamePage: React.FC<GamePageProps> = ({
 
     if (revealTimeLeft <= 0) {
       // 10s countdown completed! Transition to result page
-      if (matchResult) {
+      if (matchResult && !hasFinishedRef.current) {
+        hasFinishedRef.current = true;
+        setIsRevealing(false);
         onFinishReveal(matchResult);
       }
       return;
@@ -102,6 +109,7 @@ export const GamePage: React.FC<GamePageProps> = ({
   const handleSelectMove = async (move: Move) => {
     if (selectedMove || isRevealing) return;
 
+    hasFinishedRef.current = false;
     setSelectedMove(move);
     setIsRevealing(true);
     setRevealTimeLeft(10);
@@ -109,6 +117,12 @@ export const GamePage: React.FC<GamePageProps> = ({
     try {
       const match = await onPlay(move);
       setMatchResult(match);
+      // If countdown already hit 0 while waiting for API, finish now
+      if (revealTimeLeft <= 0 && !hasFinishedRef.current) {
+        hasFinishedRef.current = true;
+        setIsRevealing(false);
+        onFinishReveal(match);
+      }
     } catch (e) {
       // If API fails, reset state
       setIsRevealing(false);

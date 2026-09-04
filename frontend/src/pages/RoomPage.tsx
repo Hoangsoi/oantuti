@@ -72,29 +72,30 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
   }, [room, activeTab, isRevealing, selectionTimeLeft]);
 
   // 1. Polling Room State every 2 seconds when in room lobby
+  const hasFinishedRoomMatchRef = React.useRef<boolean>(false);
+  const revealedRoomIdRef = React.useRef<string | null>(null);
+
+  // 1. Polling Room State every 2 seconds when in room lobby
   useEffect(() => {
     if (!room || activeTab !== 'lobby') return;
-
-    // If room is completed and not currently in 10s reveal phase, auto reset for next round
-    if (room.status === 'completed' && !isRevealing) {
-      api.resetRoom(room.room_code).then((resetRoom) => {
-        setRoom(resetRoom);
-        setMySelectedMove(null);
-        setIsRevealing(false);
-        setSelectionTimeLeft(10);
-      }).catch(() => {});
-      return;
-    }
 
     const interval = setInterval(async () => {
       try {
         const updated = await api.getRoomState(room.room_code);
         setRoom(updated);
 
-        // Check if both locked and room completed
-        if (updated.status === 'completed' && !isRevealing) {
-          setIsRevealing(true);
-          setRevealTimeLeft(10);
+        // Check if room is completed and hasn't been revealed yet
+        if (updated.status === 'completed') {
+          const roomKey = `${updated.room_code}_${updated.updated_at || updated.status}`;
+          if (revealedRoomIdRef.current !== roomKey && !isRevealing) {
+            revealedRoomIdRef.current = roomKey;
+            hasFinishedRoomMatchRef.current = false;
+            setIsRevealing(true);
+            setRevealTimeLeft(10);
+          }
+        } else if (updated.status === 'ready' || updated.status === 'waiting') {
+          revealedRoomIdRef.current = null;
+          hasFinishedRoomMatchRef.current = false;
         }
       } catch (e) {
         // ignore polling errors
@@ -161,7 +162,8 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
     if (!isRevealing) return;
 
     if (revealTimeLeft <= 0) {
-      if (room && currentUser) {
+      if (room && currentUser && !hasFinishedRoomMatchRef.current) {
+        hasFinishedRoomMatchRef.current = true;
         const isHostUser = Number(room.host_id) === Number(currentUser.id);
         const myMove = isHostUser ? room.host_move : room.guest_move;
         const opponentMove = isHostUser ? room.guest_move : room.host_move;
