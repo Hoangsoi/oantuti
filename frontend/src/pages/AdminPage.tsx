@@ -87,8 +87,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
     }
   };
 
-  const loadTransactions = async () => {
-    setTxLoading(true);
+  const loadTransactions = async (isSilent = false) => {
+    if (!isSilent && transactions.length === 0) setTxLoading(true);
     try {
       if (txFilter === 'pending') {
         const data = await api.getAdminPendingTransactions();
@@ -98,43 +98,43 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
         setTransactions(data);
       }
     } catch (err: any) {
-      setStatusMsg({ type: 'error', text: err.message || 'Không thể tải danh sách đơn hàng' });
+      if (!isSilent) setStatusMsg({ type: 'error', text: err.message || 'Không thể tải danh sách đơn hàng' });
     } finally {
       setTxLoading(false);
     }
   };
 
-  const loadUsers = async () => {
-    setUsersLoading(true);
+  const loadUsers = async (isSilent = false) => {
+    if (!isSilent && users.length === 0) setUsersLoading(true);
     try {
       const data = await api.getAdminUsers(userSearch);
       setUsers(data);
     } catch (err: any) {
-      setStatusMsg({ type: 'error', text: err.message || 'Không thể tải danh sách khách hàng' });
+      if (!isSilent) setStatusMsg({ type: 'error', text: err.message || 'Không thể tải danh sách khách hàng' });
     } finally {
       setUsersLoading(false);
     }
   };
 
-  const loadStats = async () => {
-    setStatsLoading(true);
+  const loadStats = async (isSilent = false) => {
+    if (!isSilent && !gameStats) setStatsLoading(true);
     try {
       const data = await api.getAdminGameStats();
       setGameStats(data);
     } catch (err: any) {
-      setStatusMsg({ type: 'error', text: err.message || 'Không thể tải thống kê hệ thống' });
+      if (!isSilent) setStatusMsg({ type: 'error', text: err.message || 'Không thể tải thống kê hệ thống' });
     } finally {
       setStatsLoading(false);
     }
   };
 
-  const loadPaymentConfig = async () => {
-    setConfigLoading(true);
+  const loadPaymentConfig = async (isSilent = false) => {
+    if (!isSilent && !paymentConfig.bankName) setConfigLoading(true);
     try {
       const data = await api.getAdminPaymentConfig();
       setPaymentConfig(data);
     } catch (err: any) {
-      setStatusMsg({ type: 'error', text: err.message || 'Không thể tải cấu hình thanh toán Admin' });
+      if (!isSilent) setStatusMsg({ type: 'error', text: err.message || 'Không thể tải cấu hình thanh toán Admin' });
     } finally {
       setConfigLoading(false);
     }
@@ -185,8 +185,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
 
       const interval = setInterval(() => {
         if (document.visibilityState === 'visible') {
-          if (activeTab === 'pending') loadTransactions();
-          else if (activeTab === 'stats') loadStats();
+          if (activeTab === 'pending') loadTransactions(true);
+          else if (activeTab === 'stats') loadStats(true);
         }
       }, 4000);
 
@@ -492,7 +492,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
                 </button>
               ))}
             </div>
-            <button onClick={loadTransactions} className="p-1 rounded bg-slate-800 text-slate-300">
+            <button onClick={() => loadTransactions(false)} className="p-1 rounded bg-slate-800 text-slate-300">
               <RefreshCw className={`w-3.5 h-3.5 ${txLoading ? 'animate-spin' : ''}`} />
             </button>
           </div>
@@ -623,12 +623,12 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
                 placeholder="Tìm theo tên hoặc Telegram ID..."
                 value={userSearch}
                 onChange={(e) => setUserSearch(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && loadUsers()}
+                onKeyDown={(e) => e.key === 'Enter' && loadUsers(false)}
                 className="bg-slate-900 border border-slate-700 text-xs text-white p-2.5 pl-9 rounded-xl w-full focus:outline-none"
               />
             </div>
             <button
-              onClick={loadUsers}
+              onClick={() => loadUsers(false)}
               className="px-3 py-2 bg-purple-600 text-white font-black text-xs rounded-xl"
             >
               TÌM
