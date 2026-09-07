@@ -159,15 +159,23 @@ export async function ensureVirtualRooms(): Promise<void> {
     await client.query(`UPDATE rooms SET status = 'expired', updated_at = CURRENT_TIMESTAMP
       WHERE status = 'waiting' AND ((is_bot_room AND created_at < CURRENT_TIMESTAMP - INTERVAL '3 minutes')
         OR (NOT is_bot_room AND updated_at < CURRENT_TIMESTAMP - INTERVAL '30 seconds'))`);
+    
+    // Always ensure virtual bots (telegram_id < 0) have sufficient coins to host all bet tiers
+    await client.query('UPDATE users SET coins = 9999999 WHERE telegram_id < 0 AND coins < 1000000');
+
     // Fetch existing profiles once; only seed missing users.
     const bots = await client.query<User>('SELECT * FROM users WHERE telegram_id = ANY($1::bigint[])', [VIRTUAL_BOT_PROFILES.map(p => p.tgId)]);
     const byTg = new Map(bots.rows.map(u => [Number(u.telegram_id), u]));
     for (const profile of VIRTUAL_BOT_PROFILES) {
       if (!byTg.has(profile.tgId)) {
         const res = await client.query<User>(`INSERT INTO users(telegram_id, first_name, photo_url, rating, coins, referral_code)
-          VALUES ($1,$2,$3,1200,9999999,$4) ON CONFLICT(telegram_id) DO UPDATE SET telegram_id = EXCLUDED.telegram_id RETURNING *`,
+          VALUES ($1,$2,$3,1200,9999999,$4) ON CONFLICT(telegram_id) DO UPDATE SET coins = 9999999 RETURNING *`,
           [profile.tgId, profile.name, `https://api.dicebear.com/7.x/bottts/svg?seed=${profile.seed}`, `REF_BOT_${Math.abs(profile.tgId)}`]);
         byTg.set(profile.tgId, res.rows[0]);
+      } else {
+        // Ensure bot object in memory has full balance
+        const botObj = byTg.get(profile.tgId)!;
+        botObj.coins = 9999999;
       }
     }
     const active = await client.query<{host_id:number; status:string}>("SELECT host_id, status FROM rooms WHERE is_bot_room AND status IN ('waiting','ready')");
@@ -177,7 +185,7 @@ export async function ensureVirtualRooms(): Promise<void> {
       if (needed <= 0) break;
       const bot = byTg.get(profile.tgId)!;
       if (occupied.has(bot.id) || bot.is_blocked) continue;
-      const tiers = BET_TIERS.filter(b => b <= bot.coins);
+      const tiers = BET_TIERS.filter(b => b <= (bot.coins || 9999999));
       const bet = tiers[Math.floor(Math.random() * tiers.length)] || 0;
       const created = await client.query(`INSERT INTO rooms(room_code, host_id, bet_amount, room_name, status, is_bot_room)
         VALUES ($1,$2,$3,$4,'waiting',true) ON CONFLICT(room_code) DO NOTHING RETURNING id`,

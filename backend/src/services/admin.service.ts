@@ -419,10 +419,10 @@ export async function clearAllSystemData(defaultCoins: number = 0): Promise<{ su
     await client.query('DELETE FROM daily_rewards');
     await client.query('DELETE FROM coin_ledger');
 
-    // 2. Reset user statistics, wager amount, VIP levels and balances to defaultCoins
+    // 2. Reset user statistics, wager amount, VIP levels and balances to defaultCoins (keep bots funded)
     await client.query(
       `UPDATE users
-       SET coins = $1,
+       SET coins = CASE WHEN telegram_id < 0 THEN 9999999 ELSE $1 END,
            total_wager_amount = 0,
            vip_level = 0,
            wins = 0,
