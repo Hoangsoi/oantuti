@@ -1,0 +1,45 @@
+services:
+  # Backend Web Service
+  - type: web
+    name: oantuti-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm ci && npm run build
+    preDeployCommand: npm run migrate
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: BOT_TOKEN
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: ADMIN_TELEGRAM_ID
+        value: "8780377211"
+      - key: ADMIN_TELEGRAM_USERNAME
+        value: ottadmin2026
+
+  # Frontend Static Site
+  - type: web
+    name: oantuti-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        sync: false
+      - key: VITE_BOT_USERNAME
+        value: OanTuTiBot
+      - key: VITE_ADMIN_USERNAME
+        value: ottadmin2026
+      - key: VITE_ADMIN_ID
+        value: "8780377211"
