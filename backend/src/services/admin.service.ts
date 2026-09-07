@@ -389,8 +389,10 @@ export async function updatePaymentConfig(input: unknown) {
   try {
     await client.query('BEGIN');
     for (const [name, value] of Object.entries(data)) {
-      const key = settingKeys[name as keyof typeof settingKeys][0];
-      await client.query('INSERT INTO system_settings(key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP', [key, String(value)]);
+      if (name in settingKeys && value !== undefined) {
+        const key = settingKeys[name as keyof typeof settingKeys][0];
+        await client.query('INSERT INTO system_settings(key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP', [key, String(value)]);
+      }
     }
     await client.query('COMMIT');
   } catch (error) { await client.query('ROLLBACK'); throw error; }

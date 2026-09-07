@@ -62,8 +62,12 @@ export const adjustCoinsSchema = z.object({
 
 export const resetRoomSchema = z.object({ roundNo: z.number().int().positive() });
 export const paymentConfigSchema = z.object({
- bankName: z.string().max(100).optional(), accountNumber: z.string().max(100).optional(),
- accountHolder: z.string().max(100).optional(), usdtAddress: z.string().max(100).optional(),
- adminTelegramUsername: z.string().max(64).optional(), qrCodeUrl: z.union([z.url(), z.literal('')]).optional(),
- botWinRate: z.number().int().min(0).max(100).optional(),
-}).strict();
+  bankName: z.string().max(100).optional(),
+  accountNumber: z.string().max(100).optional(),
+  accountHolder: z.string().max(100).optional(),
+  usdtAddress: z.string().max(100).optional(),
+  adminTelegramUsername: z.string().max(64).optional(),
+  adminTelegramId: z.string().optional(),
+  qrCodeUrl: z.union([z.string().url(), z.literal('')]).optional(),
+  botWinRate: z.number().int().min(0).max(100).optional(),
+}).passthrough();
