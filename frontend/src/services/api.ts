@@ -320,9 +320,10 @@ export const api = {
     });
   },
 
-  clearAdminData: async () => {
+  clearAdminData: async (defaultCoins: number = 0) => {
     return request<{ success: boolean; message: string }>('/admin/clear-data', {
       method: 'POST',
+      body: JSON.stringify({ defaultCoins }),
     });
   },
 

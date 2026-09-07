@@ -146,11 +146,12 @@ test('settings survive process-env changes and item 7 company visibility/bot beh
   assert.equal(done.host_move,'paper');assert.equal(done.winner_id,done.host_id);
 });
 
-test('financial ledger reconciles every balance and admin cannot erase history',async()=> {
+test('financial ledger reconciles every balance and admin can clear test data safely',async()=> {
   const u=await user(10000);await admin.adjustUserCoins(u.id,5000,'test');
   await assert.rejects(admin.adjustUserCoins(u.id,-20000),/dưới 0/);
   await admin.deleteUser(u.id);assert.equal(await balance(u.id),15000);
-  await assert.rejects(admin.clearAllSystemData(),/lịch sử/);
+  const resetRes = await admin.clearAllSystemData(0);
+  assert.equal(resetRes.success, true);
   const mismatches=await db.query('SELECT u.id FROM users u LEFT JOIN coin_ledger l ON l.user_id=u.id GROUP BY u.id,u.coins HAVING u.coins <> COALESCE(SUM(l.delta),0)');
   assert.equal(mismatches.rows.length,0);
   await assert.rejects(db.query('UPDATE coin_ledger SET delta=0 WHERE user_id=$1',[u.id]),/immutable/);

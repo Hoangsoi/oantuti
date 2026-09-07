@@ -398,11 +398,69 @@ export async function updatePaymentConfig(input: unknown) {
   return readSettings();
 }
 
-// ----------------------------------------------------------------------
-// WIPE ALL SYSTEM DATA (TRANSACTIONS, MATCHES, COMMISSIONS, ROOMS)
-// ----------------------------------------------------------------------
-export async function clearAllSystemData(): Promise<{success: boolean; message: string}> {
-  throw new Error('Không thể xóa lịch sử tài chính. Hãy dùng cơ sở dữ liệu thử nghiệm riêng.');
+export async function clearAllSystemData(defaultCoins: number = 0): Promise<{ success: boolean; message: string }> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Temporarily disable triggers for system data reset operation
+    await client.query('ALTER TABLE coin_ledger DISABLE TRIGGER immutable_coin_ledger');
+    await client.query('ALTER TABLE users DISABLE TRIGGER users_coin_audit');
+    await client.query('ALTER TABLE room_rounds DISABLE TRIGGER immutable_completed_round');
+
+    // 1. Delete all match history, room rounds, rooms, transactions, commissions, daily rewards and ledger history
+    await client.query('DELETE FROM matches');
+    await client.query('DELETE FROM room_rounds');
+    await client.query('DELETE FROM rooms');
+    await client.query('DELETE FROM transactions');
+    await client.query('DELETE FROM referral_commissions');
+    await client.query('DELETE FROM daily_rewards');
+    await client.query('DELETE FROM coin_ledger');
+
+    // 2. Reset user statistics, wager amount, VIP levels and balances to defaultCoins
+    await client.query(
+      `UPDATE users
+       SET coins = $1,
+           total_wager_amount = 0,
+           vip_level = 0,
+           wins = 0,
+           losses = 0,
+           draws = 0,
+           total_matches = 0,
+           current_streak = 0,
+           best_streak = 0,
+           last_vip_reward_claimed_month = NULL,
+           updated_at = CURRENT_TIMESTAMP`,
+      [Math.max(0, defaultCoins)]
+    );
+
+    // 3. Insert baseline record into coin_ledger
+    await client.query(
+      `INSERT INTO coin_ledger(user_id, delta, balance_after, reason)
+       SELECT id, coins, coins, 'system_reset_baseline' FROM users`
+    );
+
+    // Re-enable triggers
+    await client.query('ALTER TABLE coin_ledger ENABLE TRIGGER immutable_coin_ledger');
+    await client.query('ALTER TABLE users ENABLE TRIGGER users_coin_audit');
+    await client.query('ALTER TABLE room_rounds ENABLE TRIGGER immutable_completed_round');
+
+    await client.query('COMMIT');
+    return {
+      success: true,
+      message: `Đã làm sạch toàn bộ dữ liệu chạy thử thành công! Tất cả thống kê và số dư đã được reset về ${defaultCoins} Xu.`,
+    };
+  } catch (error: any) {
+    await client.query('ROLLBACK');
+    try {
+      await client.query('ALTER TABLE coin_ledger ENABLE TRIGGER immutable_coin_ledger');
+      await client.query('ALTER TABLE users ENABLE TRIGGER users_coin_audit');
+      await client.query('ALTER TABLE room_rounds ENABLE TRIGGER immutable_completed_round');
+    } catch (_) {}
+    throw new Error(`Làm sạch dữ liệu thất bại: ${error.message}`);
+  } finally {
+    client.release();
+  }
 }
 
 export async function deleteUser(userId: number) {

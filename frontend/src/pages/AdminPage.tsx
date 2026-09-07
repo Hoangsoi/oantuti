@@ -66,6 +66,38 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const isAdminAuthenticated = Boolean(adminUser && String(adminUser.telegram_id) === String(ADMIN_TELEGRAM_ID));
 
+  // Data Cleanup State
+  const [showResetModal, setShowResetModal] = useState<boolean>(false);
+  const [resetConfirmInput, setResetConfirmInput] = useState<string>('');
+  const [resetDefaultCoins, setResetDefaultCoins] = useState<number>(0);
+  const [resetLoading, setResetLoading] = useState<boolean>(false);
+
+  const handleConfirmReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (resetConfirmInput.trim().toUpperCase() !== 'RESET-ALL') {
+      setStatusMsg({ type: 'error', text: 'Vui lòng nhập chính xác chuỗi từ khóa "RESET-ALL" để xác nhận!' });
+      return;
+    }
+    setResetLoading(true);
+    setStatusMsg(null);
+    triggerHapticImpact('heavy');
+    try {
+      const res = await api.clearAdminData(resetDefaultCoins);
+      triggerHapticNotification('success');
+      setStatusMsg({ type: 'success', text: res.message || 'Đã làm sạch dữ liệu hệ thống thành công!' });
+      setShowResetModal(false);
+      setResetConfirmInput('');
+      loadStats(true);
+      loadTransactions(true);
+      loadUsers(true);
+    } catch (err: any) {
+      triggerHapticNotification('error');
+      setStatusMsg({ type: 'error', text: err.message || 'Làm sạch dữ liệu thất bại' });
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   const handleAdminLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginLoading(true);
@@ -1090,11 +1122,95 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
             )}
           </form>
 
-
+          {/* DANGER ZONE: DATA CLEANUP FOR PRODUCTION RUN */}
+          <div className="card-glass p-5 border-red-500/50 bg-red-950/20 space-y-3 mt-4">
+            <div className="flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-red-400" />
+              <h3 className="text-xs font-black text-red-400 uppercase tracking-wider">
+                🧹 LÀM SẠCH DỮ LIỆU HỆ THỐNG (RESET VỀ 0 CHẠY THẬT)
+              </h3>
+            </div>
+            <p className="text-[11px] text-slate-300 font-semibold leading-relaxed">
+              Chức năng này giúp xóa sạch toàn bộ lịch sử đấu thử, đơn nạp/rút thử, hoa hồng thử và đưa tất cả chỉ số cược/thống kê về <strong>0</strong> để khởi chạy hệ thống chính thức.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setShowResetModal(true);
+                setResetConfirmInput('');
+              }}
+              className="w-full py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>BẮT ĐẦU LÀM SẠCH DỮ LIỆU VỀ 0</span>
+            </button>
+          </div>
         </div>
       )}
 
+      {/* CONFIRMATION MODAL FOR SYSTEM DATA RESET */}
+      {showResetModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="card-glass border-red-500/60 p-6 max-w-sm w-full space-y-4 text-center">
+            <div className="w-12 h-12 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 flex items-center justify-center mx-auto text-2xl animate-bounce">
+              ⚠️
+            </div>
+            <div>
+              <h3 className="text-base font-black text-red-400">XÁC NHẬN LÀM SẠCH DỮ LIỆU</h3>
+              <p className="text-xs text-slate-300 font-semibold mt-1">
+                Hành động này sẽ xóa toàn bộ trận đấu thử, giao dịch thử và reset số dư/thống kê về <strong>0</strong>.
+              </p>
+            </div>
 
+            <form onSubmit={handleConfirmReset} className="space-y-3 text-left">
+              <div>
+                <label className="block text-[11px] font-extrabold text-slate-300 mb-1">
+                  Số dư Xu khởi tạo cho tất cả tài khoản:
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={resetDefaultCoins}
+                  onChange={(e) => setResetDefaultCoins(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                  className="bg-slate-900 border border-slate-700 text-white font-bold p-2.5 rounded-xl w-full text-xs"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">Nhập <strong>0</strong> để reset toàn bộ số dư về 0 Xu.</p>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-extrabold text-slate-300 mb-1">
+                  Nhập từ khóa <span className="text-red-400 font-black">RESET-ALL</span> để xác nhận:
+                </label>
+                <input
+                  type="text"
+                  placeholder="RESET-ALL"
+                  value={resetConfirmInput}
+                  onChange={(e) => setResetConfirmInput(e.target.value)}
+                  className="bg-slate-900 border border-red-500/50 text-red-400 font-black text-center p-2.5 rounded-xl w-full text-xs tracking-wider"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowResetModal(false)}
+                  className="py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs"
+                >
+                  HỦY BỎ
+                </button>
+                <button
+                  type="submit"
+                  disabled={resetLoading || resetConfirmInput.trim().toUpperCase() !== 'RESET-ALL'}
+                  className="py-2.5 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-black text-xs shadow-lg active:scale-95 transition-all"
+                >
+                  {resetLoading ? 'ĐANG RESET...' : 'XÁC NHẬN RESET'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -178,7 +178,8 @@ export async function updatePaymentConfigHandler(req: Request, res: Response) {
 
 export async function clearAllSystemDataHandler(req: Request, res: Response) {
   try {
-    const result = await clearAllSystemData();
+    const defaultCoins = typeof req.body?.defaultCoins === 'number' ? req.body.defaultCoins : 0;
+    const result = await clearAllSystemData(defaultCoins);
     return sendSuccess(res, result, result.message);
   } catch (error: any) {
     return sendError(res, error.message || 'Không thể dọn sạch dữ liệu hệ thống');
