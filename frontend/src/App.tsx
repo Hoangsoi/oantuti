@@ -13,7 +13,6 @@ import { RoomPage } from './pages/RoomPage';
 import { WalletPage } from './pages/WalletPage';
 import { AdminPage } from './pages/AdminPage';
 import { LobbyPage } from './pages/LobbyPage';
-import { TopupModal } from './components/TopupModal';
 import { getTelegramWebApp } from './services/telegram';
 import { api } from './services/api';
 import { startBgm } from './services/sound';
@@ -47,7 +46,6 @@ export const App: React.FC = () => {
     showResult,
   } = useGame();
 
-  const [isTopupOpen, setIsTopupOpen] = useState<boolean>(false);
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
 
   // Check if opened from Telegram room deep link (startapp=room_839210 or ?startapp=room_839210)
@@ -84,7 +82,7 @@ export const App: React.FC = () => {
     );
   }
 
-  if (error && !user) {
+  if (error && !user && activePage !== 'admin') {
     return (
       <div className="min-h-screen bg-[#0F172A] flex flex-col items-center justify-center text-white p-6 text-center space-y-4">
         <div className="w-16 h-16 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center text-3xl">
@@ -109,6 +107,9 @@ export const App: React.FC = () => {
           className="px-6 py-3.5 btn-game-primary text-sm shadow-amber-500/20"
         >
           TẢI LẠI TRANG
+        </button>
+        <button onClick={() => navigateTo('admin')} className="text-sm text-slate-300 underline">
+          Đăng nhập quản trị
         </button>
       </div>
     );
@@ -181,9 +182,9 @@ export const App: React.FC = () => {
               if (currentMatch?.opponent_type === 'pvp') {
                 if (currentRoom) {
                   try {
-                    const reset = await api.resetRoom(currentRoom.room_code);
+                    const reset = await api.resetRoom(currentRoom.room_code, currentRoom.round_no);
                     setCurrentRoom(reset);
-                  } catch (e) {}
+                  } catch (e) { window.alert(e instanceof Error ? e.message : 'Không thể chơi lại'); return; }
                 }
                 navigateTo('room');
               } else {
@@ -209,11 +210,6 @@ export const App: React.FC = () => {
   return (
     <Layout activePage={activePage} onNavigate={navigateTo}>
       {renderContent()}
-      <TopupModal
-        isOpen={isTopupOpen}
-        onClose={() => setIsTopupOpen(false)}
-        onSuccess={(updatedUser) => setUser(updatedUser)}
-      />
     </Layout>
   );
 };

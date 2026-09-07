@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Transaction, User } from '../types';
 import { api } from '../services/api';
 import { triggerHapticImpact, triggerHapticNotification } from '../services/telegram';
-import { ShieldCheck, Check, X, RefreshCw, Copy, Search, Lock, Unlock, Coins, KeyRound, Trash2, AlertTriangle, Crown } from 'lucide-react';
+import { ShieldCheck, Check, X, RefreshCw, Copy, Search, Lock, Unlock, Coins, KeyRound, Trash2, Crown } from 'lucide-react';
 
 interface AdminPageProps {
   onBackHome: () => void;
@@ -64,29 +64,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
   const [actionLoading, setActionLoading] = useState<number | string | boolean | null>(null);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [isClearModalOpen, setIsClearModalOpen] = useState<boolean>(false);
-
-  const handleExecuteClearData = async () => {
-    setActionLoading('clear_data');
-    setStatusMsg(null);
-    triggerHapticImpact('heavy');
-
-    try {
-      const res = await api.clearAdminData();
-      triggerHapticNotification('success');
-      setStatusMsg({ type: 'success', text: res.message || 'Đã dọn sạch toàn bộ dữ liệu lịch sử hệ thống!' });
-      setIsClearModalOpen(false);
-      if (activeTab === 'pending') loadTransactions();
-      else if (activeTab === 'stats') loadStats();
-      else if (activeTab === 'users') loadUsers();
-    } catch (err: any) {
-      triggerHapticNotification('error');
-      setStatusMsg({ type: 'error', text: err.message || 'Lỗi khi dọn sạch dữ liệu hệ thống' });
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
   const isAdminAuthenticated = Boolean(adminUser && String(adminUser.telegram_id) === String(ADMIN_TELEGRAM_ID));
 
   const handleAdminLoginSubmit = async (e: React.FormEvent) => {
@@ -320,7 +297,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
   };
 
   const handleDeleteUser = async (userId: number, userName: string) => {
-    if (!window.confirm(`⚠️ BẠN CÓ CHẮC CHẮN MUỐN XÓA TÀI KHOẢN "${userName}" (ID #${userId}) RA KHỎI HỆ THỐNG KHÔNG?\n\nHành động này sẽ xóa vĩnh viễn và không thể hoàn tác!`)) {
+    if (!window.confirm(`Vô hiệu hóa tài khoản "${userName}" (ID #${userId})? Lịch sử và số dư vẫn được giữ để đối soát.`)) {
       return;
     }
 
@@ -330,7 +307,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
     try {
       const res = await api.deleteAdminUser(userId);
       triggerHapticNotification('success');
-      setStatusMsg({ type: 'success', text: res.message || `Đã xóa sạch tài khoản ${userName} thành công!` });
+      setStatusMsg({ type: 'success', text: res.message || `Đã vô hiệu hóa tài khoản ${userName}; lịch sử được giữ lại.` });
       loadUsers();
     } catch (err: any) {
       triggerHapticNotification('error');
@@ -487,21 +464,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
         </button>
       </div>
 
-      {/* Quick Admin Actions Banner */}
-      <div className="flex items-center justify-between p-2.5 rounded-2xl bg-red-950/40 border border-red-500/40 text-xs">
-        <div className="flex items-center gap-1.5 font-black text-red-400">
-          <Trash2 className="w-4 h-4 text-red-500 animate-pulse" />
-          <span>XÓA SẠCH DỮ LIỆU HỆ THỐNG:</span>
-        </div>
-        <button
-          onClick={() => setIsClearModalOpen(true)}
-          className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-[11px] border border-red-400/30 shadow-md shadow-red-500/20 active:scale-95 transition-all flex items-center gap-1"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-          <span>🗑️ XÓA SẠCH LỊCH SỬ</span>
-        </button>
-      </div>
-
       {statusMsg && (
         <div className={`p-3 text-xs font-bold rounded-xl text-center border ${
           statusMsg.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400'
@@ -582,7 +544,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
                     </div>
 
                     {/* Withdrawal Bank Account Preview */}
-                    {tx.bank_name && (
+                    {!isDeposit && tx.payment_method === 'bank' && tx.bank_name && (
                       <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-xs space-y-1">
                         <div className="text-[10px] font-bold text-slate-400">Nơi nhận chuyển tiền (Khách hàng):</div>
                         <div className="flex items-center justify-between font-bold text-slate-200">
@@ -604,6 +566,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
                       </div>
                     )}
 
+                    {!isDeposit && tx.payment_method === 'usdt' && (
+                      <div className="bg-slate-950 p-3 rounded-xl text-xs break-all">
+                        Ví nhận USDT (TRC20): {tx.usdt_address || 'Chưa có địa chỉ'}
+                      </div>
+                    )}
                     {/* Admin Action Buttons for Pending */}
                     {tx.status === 'pending' ? (
                       <div className="grid grid-cols-2 gap-2 pt-1">
@@ -819,7 +786,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
                         className="px-2.5 py-1.5 rounded-xl bg-red-600/30 hover:bg-red-600 text-red-300 border border-red-500/50 font-extrabold text-[10px] flex items-center gap-1 active:scale-95 transition-all"
                       >
                         <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                        <span>XÓA TK</span>
+                        <span>VÔ HIỆU HÓA</span>
                       </button>
                     </div>
                   </div>
@@ -860,6 +827,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
                 <div className="card-glass p-3.5 border-emerald-500/30 text-center space-y-1">
                   <div className="text-[10px] font-bold text-slate-400 uppercase">TỔNG PHẾ THU (5%)</div>
                   <div className="text-lg font-black text-emerald-400">{(gameStats.totalRakeCollected || 0).toLocaleString()} Xu</div>
+                  {gameStats.accountingSince && <p className="text-[10px] text-slate-400">Số liệu tài chính từng ván từ {new Date(gameStats.accountingSince).toLocaleString('vi-VN')}</p>}
                 </div>
 
                 <div className="card-glass p-3.5 border-cyan-500/40 bg-cyan-950/20 text-center space-y-1 col-span-2">
@@ -1109,70 +1077,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
             )}
           </form>
 
-          {/* Dangerous Data Purge Card */}
-          <div className="pt-2 border-t-2 border-red-500/30 space-y-3 bg-red-950/20 p-4 rounded-2xl border border-red-500/30">
-            <div className="flex items-center gap-2 text-red-400 font-black text-sm uppercase">
-              <AlertTriangle className="w-5 h-5 text-red-500 animate-pulse" />
-              <span>🚨 DỌN SẠCH DỮ LIỆU HỆ THỐNG (DATA PURGE)</span>
-            </div>
-            <p className="text-[11px] text-slate-300 font-semibold leading-relaxed">
-              Bấm nút bên dưới để dọn sạch 100% <strong>Lịch sử Giao Dịch (Nạp/Rút)</strong>, <strong>Lịch sử Ván Đấu</strong>, <strong>Hoa Hồng Giới Thiệu</strong> và reset các chỉ số ván chơi về ban đầu.
-            </p>
 
-            <button
-              type="button"
-              onClick={() => setIsClearModalOpen(true)}
-              className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-black text-xs border border-red-400/40 shadow-xl shadow-red-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span>🗑️ XÓA TOÀN BỘ LỊCH SỬ GIAO DỊCH & VÁN CHƠI</span>
-            </button>
-          </div>
         </div>
       )}
 
-      {/* Wipe Confirmation Modal */}
-      {isClearModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-          <div className="card-glass max-w-sm w-full p-5 border-red-500/50 bg-slate-900 text-center space-y-4 shadow-2xl">
-            <div className="w-14 h-14 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center text-3xl mx-auto text-red-400">
-              ⚠️
-            </div>
-            <h3 className="text-lg font-black text-red-400 uppercase tracking-wide">
-              XÁC NHẬN XÓA SẠCH DỮ LIỆU?
-            </h3>
-            <p className="text-xs font-semibold text-slate-300 leading-relaxed">
-              Bạn có chắc chắn muốn xóa sạch 100% <strong>Lịch sử giao dịch (Nạp/Rút)</strong>, <strong>Lịch sử ván chơi</strong>, <strong>Lịch sử hoa hồng</strong> và <strong>Reset chỉ số ván chơi</strong> không?
-            </p>
-            <p className="text-[11px] font-bold text-amber-400 bg-amber-500/10 p-2 rounded-xl border border-amber-500/30">
-              ⚡ Hành động này KHÔNG THỂ HOÀN TÁC!
-            </p>
 
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setIsClearModalOpen(false)}
-                className="flex-1 py-3 rounded-xl bg-slate-800 border border-slate-700 text-xs font-extrabold text-slate-300 hover:bg-slate-700"
-              >
-                HỦY BỎ
-              </button>
-
-              <button
-                type="button"
-                disabled={actionLoading === 'clear_data'}
-                onClick={handleExecuteClearData}
-                className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-xs font-black text-white shadow-lg shadow-red-500/30 flex items-center justify-center gap-1"
-              >
-                {actionLoading === 'clear_data' ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : (
-                  <span>ĐỒNG Ý XÓA 🗑️</span>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -1,19 +1,12 @@
 import { query, pool } from '../database';
+import { readSettings } from './settings.service';
+import { depositCoins, USDT_RATE } from '../utils/money';
 import { BankAccount, Transaction, AdminPaymentInfo, User } from '../types';
 import { sendTelegramAdminNotification } from '../utils/telegram';
 
-export function getAdminPaymentInfo(): AdminPaymentInfo {
-  return {
-    adminTelegramUsername: (process.env.ADMIN_TELEGRAM_USERNAME || 'ottadmin2026').replace('@', '').trim(),
-    bankName: process.env.ADMIN_BANK_NAME || 'MBBank (Ngân Hàng Quân Đội)',
-    accountNumber: process.env.ADMIN_BANK_ACCOUNT || '999988889999',
-    accountHolder: process.env.ADMIN_BANK_HOLDER || 'OAN TU TI OFFICIAL',
-    usdtAddress: process.env.ADMIN_USDT_ADDRESS || 'T9yD14Nj9j7xQvL894K1mP5xZ7W8qM3v',
-    usdtNetwork: 'TRC20',
-    usdtRate: 25000, // 1 USDT = 25,000 Xu Game
-    bankRate: 1,     // 1,000 VNĐ = 1,000 Xu Game
-    qrCodeUrl: process.env.ADMIN_QR_CODE_URL || '',
-  };
+export async function getAdminPaymentInfo(): Promise<AdminPaymentInfo> {
+  const settings = await readSettings();
+  return { ...settings, usdtNetwork: 'TRC20', usdtRate: USDT_RATE, bankRate: 1 };
 }
 
 export async function getWalletInfo(userId: number) {
@@ -23,7 +16,7 @@ export async function getWalletInfo(userId: number) {
   return {
     bankAccount: bankRes.rows[0] || null,
     transactions: txRes.rows,
-    adminPayment: getAdminPaymentInfo(),
+    adminPayment: await getAdminPaymentInfo(),
   };
 }
 
@@ -65,18 +58,11 @@ export async function createDepositRequest(
   amount: number,
   memo: string
 ): Promise<Transaction> {
-  if (amount < 10000) {
-    throw new Error('Mức nạp tối thiểu là 10,000đ (hoặc 10,000 Xu)');
+  const coins = depositCoins(method, amount);
+  const payment = await getAdminPaymentInfo();
+  if (method === 'bank' ? !payment.accountNumber || !payment.bankName || !payment.accountHolder : !payment.usdtAddress) {
+    throw new Error('Phương thức nạp chưa được cấu hình');
   }
-
-  const adminPayment = getAdminPaymentInfo();
-  let coins = 0;
-  if (method === 'usdt') {
-    coins = Math.floor(amount * adminPayment.usdtRate);
-  } else {
-    coins = Math.floor(amount);
-  }
-
   const cleanMemo = memo.trim() || `NAP XU_${userId}_${Date.now().toString().slice(-4)}`;
 
   const res = await query<Transaction>(
@@ -106,10 +92,11 @@ export async function createWithdrawRequest(
   method: 'bank' | 'usdt',
   coinsAmount: number
 ): Promise<{ transaction: Transaction; updatedUser: User }> {
-  if (coinsAmount < 10000) {
+  if (!Number.isSafeInteger(coinsAmount) || coinsAmount < 10000 || coinsAmount > 100000000) {
     throw new Error('Mức rút tối thiểu là 10,000 Xu Game');
   }
 
+  const adminPayment = await getAdminPaymentInfo();
   const client = await pool.connect();
 
   try {
@@ -122,24 +109,24 @@ export async function createWithdrawRequest(
     }
 
     const user = userRes.rows[0];
+    if (user.is_blocked) throw new Error('Tài khoản đã bị khóa');
+    await client.query("SELECT set_config('app.coin_reason', 'withdrawal_hold', true)");
     if (user.coins < coinsAmount) {
       throw new Error(`Số dư Xu Game của bạn không đủ (${coinsAmount.toLocaleString()} Xu)`);
     }
 
-    // Verify linked account based on withdrawal method
+    const payoutAccount = (await client.query<BankAccount>('SELECT * FROM bank_accounts WHERE user_id = $1', [userId])).rows[0];
+    // Snapshot the destination: later profile edits must not change pending requests.
     if (method === 'usdt') {
-      const bankRes = await client.query<BankAccount>('SELECT usdt_address FROM bank_accounts WHERE user_id = $1', [userId]);
-      if (bankRes.rows.length === 0 || !bankRes.rows[0].usdt_address) {
+      if (!payoutAccount?.usdt_address) {
         throw new Error('Vui lòng liên kết địa chỉ ví USDT (TRC20) tại Tab "Tài Khoản" trước khi tạo yêu cầu rút USDT');
       }
     } else {
-      const bankRes = await client.query('SELECT id FROM bank_accounts WHERE user_id = $1', [userId]);
-      if (bankRes.rows.length === 0) {
+      if (!payoutAccount) {
         throw new Error('Vui lòng liên kết tài khoản ngân hàng tại Tab "Tài Khoản" trước khi tạo yêu cầu rút tiền');
       }
     }
 
-    const adminPayment = getAdminPaymentInfo();
     let fiatOrUsdtAmount = coinsAmount;
     if (method === 'usdt') {
       const grossUsdt = coinsAmount / adminPayment.usdtRate;
@@ -158,10 +145,10 @@ export async function createWithdrawRequest(
 
     // Create withdrawal transaction record
     const txRes = await client.query<Transaction>(
-      `INSERT INTO transactions (user_id, type, payment_method, amount, coins, status, memo)
-       VALUES ($1, 'withdraw', $2, $3, $4, 'pending', $5)
+      `INSERT INTO transactions (user_id, type, payment_method, amount, coins, status, memo, payout_details)
+       VALUES ($1, 'withdraw', $2, $3, $4, 'pending', $5, $6)
        RETURNING *`,
-      [userId, method, fiatOrUsdtAmount, coinsAmount, `RUT XU_${userId}_${Date.now().toString().slice(-4)}`]
+      [userId, method, fiatOrUsdtAmount, coinsAmount, `RUT XU_${userId}_${Date.now().toString().slice(-4)}`, JSON.stringify(payoutAccount)]
     );
 
     await client.query('COMMIT');

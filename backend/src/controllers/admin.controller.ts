@@ -143,7 +143,7 @@ export async function deleteUserHandler(req: Request, res: Response) {
     }
 
     const deleted = await deleteUser(userId);
-    return sendSuccess(res, deleted, `Đã xóa sạch tài khoản ID #${userId} (${deleted.first_name}) ra khỏi hệ thống thành công!`);
+    return sendSuccess(res, deleted, `Đã vô hiệu hóa tài khoản ID #${userId} (${deleted.first_name}) (lịch sử được giữ để đối soát).`);
   } catch (error: any) {
     return sendError(res, error.message || 'Không thể xóa tài khoản người dùng');
   }

@@ -119,12 +119,6 @@ export const api = {
     return request<User>('/me');
   },
 
-  topupCoins: async (amount: number) => {
-    return request<User>('/me/topup', {
-      method: 'POST',
-      body: JSON.stringify({ amount }),
-    });
-  },
 
   playGame: async (move: Move) => {
     return request<{ match: Match; updatedUser: User }>('/game/play', {
@@ -185,16 +179,17 @@ export const api = {
     return request<Room>(`/room/${roomCode}`);
   },
 
-  playRoomMove: async (roomCode: string, move: Move) => {
+  playRoomMove: async (roomCode: string, move: Move, roundNo: number) => {
     return request<Room>(`/room/${roomCode}/move`, {
       method: 'POST',
-      body: JSON.stringify({ move }),
+      body: JSON.stringify({ move, roundNo }),
     });
   },
 
-  resetRoom: async (roomCode: string) => {
+  resetRoom: async (roomCode: string, roundNo: number) => {
     return request<Room>(`/room/${roomCode}/reset`, {
       method: 'POST',
+      body: JSON.stringify({ roundNo }),
     });
   },
 
@@ -210,9 +205,7 @@ export const api = {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const endpoint = token
-        ? `${API_BASE_URL}/room/${roomCode}/leave?token=${encodeURIComponent(token)}`
-        : `${API_BASE_URL}/room/${roomCode}/leave`;
+      const endpoint = `${API_BASE_URL}/room/${roomCode}/leave`;
 
       if (navigator.sendBeacon) {
         const blob = new Blob([JSON.stringify({ token })], { type: 'application/json' });

@@ -64,7 +64,7 @@ export async function playRoomMoveHandler(req: Request, res: Response) {
     const roomCode = req.params.roomCode;
     const { move } = req.body as { move: Move };
     if (!move) return sendError(res, 'Thiếu nước đi', 400);
-    const room = await playRoomMove(req.user.id, roomCode, move);
+    const room = await playRoomMove(req.user.id, roomCode, move, req.body.roundNo);
     return sendSuccess(res, room, 'Khóa nước đi thành công');
   } catch (error: any) {
     return sendError(res, error.message || 'Lỗi khi khóa nước đi', 400);
@@ -75,7 +75,7 @@ export async function resetRoomHandler(req: Request, res: Response) {
   try {
     if (!req.user) return sendError(res, 'Chưa đăng nhập', 401);
     const roomCode = req.params.roomCode;
-    const room = await resetRoom(req.user.id, roomCode);
+    const room = await resetRoom(req.user.id, roomCode, req.body.roundNo);
     return sendSuccess(res, room, 'Reset phòng đấu thành công');
   } catch (error: any) {
     return sendError(res, error.message || 'Lỗi khi reset phòng đấu', 400);

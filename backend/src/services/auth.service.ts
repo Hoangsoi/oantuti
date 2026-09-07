@@ -37,22 +37,13 @@ export async function authenticateTelegramUser(initData: string, refCode?: strin
     if (isValid && user) {
       telegramUser = user;
     } else {
-      console.warn('[Auth] Telegram signature verification failed, attempting safe payload extraction...');
-      try {
-        const urlParams = new URLSearchParams(initData);
-        const userParam = urlParams.get('user');
-        if (userParam) {
-          telegramUser = JSON.parse(userParam);
-        }
-      } catch (e) {
-        // ignore
-      }
+      throw new Error('Dữ liệu xác thực Telegram không hợp lệ');
     }
   }
 
   // Fallback ONLY for local standalone development
   if (!telegramUser) {
-    if (config.nodeEnv === 'development') {
+    if (config.nodeEnv === 'development' && config.allowDevAuth) {
       console.warn('[Auth] Using development mock user fallback');
       telegramUser = getMockTelegramUser(999888);
     } else {
@@ -62,6 +53,7 @@ export async function authenticateTelegramUser(initData: string, refCode?: strin
 
   // Check if user exists
   const existingUserResult = await query<User>('SELECT * FROM users WHERE telegram_id = $1', [telegramUser.id]);
+  if (existingUserResult.rows[0]?.is_blocked) throw new Error('Tài khoản đã bị khóa');
   let user: User;
 
   if (existingUserResult.rows.length > 0) {

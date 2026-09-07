@@ -60,6 +60,7 @@ export async function updateVipConfigs(
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    await client.query("SELECT set_config('app.coin_reason', 'vip_reward', true)");
     for (const cfg of configs) {
       await client.query(
         `INSERT INTO vip_configs (vip_level, min_wager, monthly_reward, updated_at)
@@ -112,6 +113,7 @@ export async function claimMonthlyVipReward(userId: number) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    await client.query("SELECT set_config('app.coin_reason', 'vip_reward', true)");
 
     const userRes = await client.query('SELECT * FROM users WHERE id = $1 FOR UPDATE', [userId]);
     if (userRes.rows.length === 0) throw new Error('Người dùng không tồn tại');

@@ -6,7 +6,9 @@
     "dev": "concurrently \"npm --prefix backend run dev\" \"npm --prefix frontend run dev\"",
     "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend run dev",
-    "build": "npm --prefix backend run build && npm --prefix frontend run build"
+    "build": "npm --prefix backend run build && npm --prefix frontend run build",
+    "test": "npm --prefix backend test && npm --prefix frontend test",
+    "check": "npm test && npm --prefix frontend run lint && npm --prefix frontend run build"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

@@ -157,8 +157,8 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
   // Submit Deposit Request
   const handleConfirmDeposit = async () => {
     const amt = Number(depositAmount);
-    if (!amt || amt < 10000) {
-      setError('Mức nạp tối thiểu là 10,000đ (hoặc 10,000 Xu)');
+    if (!Number.isFinite(amt) || amt * (depositMethod === 'usdt' ? 25000 : 1) < 10000 || amt * (depositMethod === 'usdt' ? 25000 : 1) > 100000000) {
+      setError('Mức nạp từ 10.000 đến 100.000.000 Xu; USDT từ 0,4 đến 4.000');
       return;
     }
 
@@ -529,10 +529,10 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
                     </div>
 
                     <div className="space-y-1 pt-2">
-                      <label className="font-black text-slate-200 block">Số lượng USDT nạp (Tối thiểu 10,000đ):</label>
+                      <label className="font-black text-slate-200 block">Số lượng USDT nạp (từ 0,4 đến 4.000 USDT):</label>
                       <input
                         type="number"
-                        placeholder="VD: 10"
+                        min={0.4} max={4000} step={0.0001} placeholder="VD: 10"
                         value={depositAmount}
                         onChange={(e) => setDepositAmount(e.target.value)}
                         className="bg-slate-900 border border-slate-700 text-emerald-400 font-black text-lg p-3 rounded-xl w-full text-center focus:outline-none focus:border-emerald-400"

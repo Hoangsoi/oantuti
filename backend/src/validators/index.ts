@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { depositCoins } from '../utils/money';
 
 export const authSchema = z.object({
   initData: z.string().optional(),
@@ -26,6 +27,7 @@ export const joinRoomSchema = z.object({
 });
 
 export const roomMoveSchema = z.object({
+  roundNo: z.number().int().positive(),
   move: z.enum(['rock', 'paper', 'scissors']),
 });
 
@@ -38,8 +40,10 @@ export const linkBankSchema = z.object({
 
 export const depositSchema = z.object({
   method: z.enum(['bank', 'usdt']),
-  amount: z.number().min(10000, 'Mức nạp tối thiểu là 10,000đ').max(100000000, 'Số tiền quá lớn'),
+  amount: z.number().positive(),
   memo: z.string().max(200).optional(),
+}).superRefine((data, ctx) => {
+  try { depositCoins(data.method, data.amount); } catch (error) { ctx.addIssue({ code: 'custom', path: ['amount'], message: (error as Error).message }); }
 });
 
 export const withdrawSchema = z.object({
@@ -55,3 +59,11 @@ export const adjustCoinsSchema = z.object({
   amount: z.number().int(),
   reason: z.string().max(200).optional(),
 });
+
+export const resetRoomSchema = z.object({ roundNo: z.number().int().positive() });
+export const paymentConfigSchema = z.object({
+ bankName: z.string().max(100).optional(), accountNumber: z.string().max(100).optional(),
+ accountHolder: z.string().max(100).optional(), usdtAddress: z.string().max(100).optional(),
+ adminTelegramUsername: z.string().max(64).optional(), qrCodeUrl: z.union([z.url(), z.literal('')]).optional(),
+ botWinRate: z.number().int().min(0).max(100).optional(),
+}).strict();

@@ -5,8 +5,10 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "build": "tsc && node -e \"require('fs').mkdirSync('dist/database', {recursive: true}); require('fs').copyFileSync('src/database/schema.sql', 'dist/database/schema.sql')\"",
-    "start": "node dist/index.js"
+    "build": "tsc && node -e \"for (const f of ['schema.sql','hardening.sql']) {require('fs').mkdirSync('dist/database', {recursive:true}); require('fs').copyFileSync('src/database/'+f,'dist/database/'+f)}\"",
+    "start": "node dist/index.js",
+    "migrate": "node dist/database/migrate.js",
+    "test": "npm run build && node --test test/security.test.cjs test/integration.test.cjs"
   },
   "dependencies": {
     "@types/cors": "^2.8.17",
@@ -20,11 +22,16 @@
     "express-rate-limit": "^7.3.1",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
+    "oantuti-root": "file:..",
     "pg": "^8.12.0",
     "typescript": "^5.5.2",
     "zod": "^4.5.4"
   },
+  "overrides": {
+    "qs": "^6.16.0"
+  },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "ts-node-dev": "^2.0.0"
   }
 }

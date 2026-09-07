@@ -48,6 +48,11 @@ export interface Match {
 }
 
 export interface Room {
+  round_no: number;
+  round_deadline?: string | Date | null;
+  escrow_funded?: boolean;
+  host_rematch?: boolean;
+  guest_rematch?: boolean;
   id: number;
   room_code: string;
   host_id: number;
@@ -86,6 +91,7 @@ export interface BankAccount {
 }
 
 export interface Transaction {
+  usdt_address?: string | null;
   id: number;
   user_id: number;
   type: 'deposit' | 'withdraw';

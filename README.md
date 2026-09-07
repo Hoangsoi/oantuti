@@ -1,49 +1,48 @@
-# ✊✋✌️ OẲN TÙ TÌ - Telegram Mini App
+# Oẳn Tù Tì — Telegram Mini App
 
-Game Oẳn Tù Tì Telegram Mini App full-stack hiện đại dành cho thị trường Việt Nam.
+Ứng dụng React/TypeScript + Express/PostgreSQL với chơi máy, phòng đấu, ví nạp/rút được admin duyệt, thưởng ngày, giới thiệu 5 tầng, VIP 30 cấp và bảng xếp hạng.
 
-## 🚀 Tính năng nổi bật
+## Cài đặt
 
-- 🎮 **Chơi với Máy (Single-player)**: Thao tác nhanh, animation mượt mà.
-- 👥 **Chế độ Tạo Phòng PvP 1vs1**:
-  - Mã phòng 6 số duy nhất.
-  - Tự động sinh link Telegram (`https://t.me/BOT?startapp=room_CODE`).
-  - Khóa nước đi bí mật, 10s đếm ngược mở kết quả.
-  - Tùy chọn Mức cược Xu Game (`0 Xu`, `100 Xu`, `500 Xu`, `1,000 Xu`).
-  - Thu phí dịch vụ 5% nền tảng từ người thắng.
-- 💳 **Hệ thống Ví & Nạp/Rút Tiền**:
-  - **Liên kết Ngân hàng cá nhân** (MBBank, Vietcombank, Techcombank, VPBank, ACB...).
-  - **Nạp tiền Chuyển khoản Admin**: Tự động tạo QR VietQR chuẩn ngân hàng.
-  - **Nạp USDT TRC20**: Tỷ giá `1 USDT = 25,000 Xu Game`.
-  - **Nút Báo Admin 1-touch**: Chuyển hướng trực tiếp tới Telegram Admin (`ID: 8780377211`).
-- 🛡️ **Panel Quản Trị Admin**:
-  - Quản lý & duyệt danh sách đơn Nạp / Rút đang chờ.
-  - Duyệt ➔ Hệ thống tự động cộng/hoàn Xu trên **Neon PostgreSQL Cloud**.
-- 🏆 **Bảng Xếp Hạng & Nhiệm Vụ Ngày**: Phân hạng ELO Rating, chuỗi thắng, thưởng hằng ngày.
+Dùng Node.js 22 (hoặc Node.js từ 20.19). Cài thư viện theo lockfile:
 
----
-
-## 🛠️ Hướng dẫn Cài đặt & Khởi chạy
-
-### 1. Cài đặt Dependencies
-```bash
-npm install
-npm --prefix backend install
-npm --prefix frontend install
+```sh
+npm ci
+npm --prefix backend ci
+npm --prefix frontend ci
 ```
 
-### 2. Khởi chạy Server (Backend + Frontend)
-```bash
+Sao chép backend/.env.example thành backend/.env và điền cấu hình; frontend dùng frontend/.env.example. Backend không tự đọc .env ở thư mục gốc. Không đưa bí mật vào Git.
+
+Tạo schema/cập nhật DB trước khi chạy:
+
+```sh
+npm run build
+npm --prefix backend run migrate
 npm run dev
 ```
 
-- **Frontend App**: [http://localhost:5173](http://localhost:5173)
-- **Backend API**: [http://localhost:5000](http://localhost:5000)
+Frontend: http://localhost:5173. Backend: http://localhost:5000. Chạy thử ngoài Telegram chỉ khi NODE_ENV=development và ALLOW_DEV_AUTH=true với DB thử nghiệm riêng. Đăng nhập admin bằng mật khẩu chỉ khả dụng nếu đã đặt ADMIN_USERNAME/ADMIN_PASSWORD riêng; có thể mở từ màn hình lỗi đăng nhập Telegram.
 
----
+## Quy tắc hiện tại
 
-## 🗄️ Công nghệ sử dụng
+- Cả hai bên được giữ đủ tiền trước mỗi ván; Xu giữ không thể rút. Thắng nhận tổng tiền giữ trừ phí 5% mức cược. Hòa hoàn tiền hai bên, không trả hoa hồng hoặc tính doanh số VIP.
+- Mỗi ván có số thứ tự riêng; chơi lại cần hai bên đồng ý, bot tự đồng ý. Hết giờ do backend xử lý; không thể xóa nước đi bằng reset/rời phòng khi ván còn chạy.
+- Phòng bot giữ cơ chế tỷ lệ thắng có cấu hình (mặc định 70%); quyền xem nước đi của tài khoản công ty được giữ theo yêu cầu.
+- Điểm xếp hạng thắng +12, thua -8, hòa 0; đây không phải công thức ELO theo chênh lệch đối thủ. Thưởng nhiệm vụ có thể tăng điểm.
+- Nạp ngân hàng từ 10.000 VNĐ; USDT từ 0,4 USDT, tỷ giá 25.000 Xu/USDT. Nạp/rút cần admin duyệt; phí rút USDT hiện tại 2 USDT.
+- Cấu hình thanh toán lưu trong DB; đích nhận của đơn rút được chụp lại khi tạo. Sổ Xu và ván đã quyết toán không thể sửa/xóa qua ứng dụng.
 
-- **Frontend**: React, TypeScript, Tailwind CSS, Lucide Icons, Vite.
-- **Backend**: Node.js, Express, TypeScript, PG Client, HMAC-SHA256 Auth.
-- **Database**: Cloud Neon PostgreSQL.
+## Kiểm tra
+
+```sh
+npm run check
+```
+
+Lệnh này chạy kiểm thử backend trên PostgreSQL nhúng trong bộ nhớ, kiểm thử giao diện, lint và build. Không cần cơ sở dữ liệu thật hoặc token Telegram cho test. CI chạy cùng lệnh trên Node 22.
+
+## Triển khai bản sửa
+
+Đọc [Hướng dẫn áp dụng](HUONG_DAN_AP_DUNG.md) trước khi nâng cấp hệ thống có dữ liệu. Cần thay credential đã lộ ở nhà cung cấp, đặt JWT secret mới, sao lưu và dừng backend cũ trước migration. Startup chỉ kiểm tra phiên bản schema, không tự đổi bảng hoặc xóa dữ liệu theo tên.
+
+[Báo cáo ban đầu](BAO_CAO_QUET_DU_AN.md) mô tả lỗi trước bản sửa; không phải tình trạng mã hiện tại.

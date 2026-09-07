@@ -56,7 +56,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
       // 10s selection timeout expired! Poll server for completed room state
       api.getRoomState(room.room_code).then((updated) => {
         setRoom(updated);
-        if (updated.status === 'completed' && !isRevealing) {
+        if (updated.status === 'completed' && !updated.host_rematch && !updated.guest_rematch && !isRevealing) {
           setIsRevealing(true);
           setRevealTimeLeft(10);
         }
@@ -65,7 +65,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
     }
 
     const timer = setTimeout(() => {
-      setSelectionTimeLeft((prev) => prev - 1);
+      setSelectionTimeLeft(Math.max(0, Math.ceil((new Date(room.round_deadline || Date.now()).getTime() - Date.now()) / 1000)));
     }, 1000);
 
     return () => clearTimeout(timer);
@@ -85,7 +85,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
         setRoom(updated);
 
         // Check if room is completed and hasn't been revealed yet
-        if (updated.status === 'completed') {
+        if (updated.status === 'completed' && !updated.host_rematch && !updated.guest_rematch) {
           const roomKey = `${updated.room_code}_${updated.updated_at || updated.status}`;
           if (revealedRoomIdRef.current !== roomKey && !isRevealing) {
             revealedRoomIdRef.current = roomKey;
@@ -104,6 +104,12 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
 
     return () => clearInterval(interval);
   }, [room?.room_code, room?.status, activeTab, isRevealing]);
+
+  useEffect(() => {
+    if (room?.status === 'ready' && room.round_deadline) {
+      setSelectionTimeLeft(Math.max(0, Math.ceil((new Date(room.round_deadline).getTime() - Date.now()) / 1000)));
+    }
+  }, [room?.round_no, room?.status, room?.round_deadline]);
 
   // Reset local move selection state when room returns to 'ready' status for a new round
   useEffect(() => {
@@ -258,7 +264,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
     setMySelectedMove(move);
     setLoading(true);
     try {
-      const updated = await api.playRoomMove(room.room_code, move);
+      const updated = await api.playRoomMove(room.room_code, move, room.round_no);
       setRoom(updated);
 
       if (updated.status === 'completed') {
@@ -460,6 +466,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
 
   const isHost = room.host_id === currentUser.id;
   const hasGuestJoined = !!room.guest_id;
+  const isPlayer = isHost || Number(room.guest_id) === Number(currentUser.id);
   const myMoveLocked = isHost ? room.has_host_locked : room.has_guest_locked;
 
   const betAmt = room.bet_amount || 0;
@@ -471,7 +478,8 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
       try {
         await api.leaveRoom(room.room_code);
       } catch (err) {
-        // ignore
+        setError(err instanceof Error ? err.message : 'Không thể rời phòng');
+        return;
       }
       setRoom(null);
     }
@@ -496,6 +504,21 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
         </div>
       </div>
 
+      {error && <p role="alert" className="text-red-400 text-sm text-center p-3">{error}</p>}
+      {room.status === 'completed' && (room.host_rematch || room.guest_rematch) && (
+        <div className="card-glass p-4 text-center text-amber-300">
+          <p>Đang chờ cả hai người đồng ý chơi lại. Xu sẽ được giữ khi ván mới bắt đầu.</p>
+          {!(isHost ? room.host_rematch : room.guest_rematch) && (
+            <button className="btn-game-primary p-3 mt-3" disabled={loading} onClick={async () => {
+              setLoading(true);
+              try { setRoom(await api.resetRoom(room.room_code, room.round_no)); }
+              catch (e) { setError(e instanceof Error ? e.message : 'Không thể chơi lại'); }
+              finally { setLoading(false); }
+            }}>ĐỒNG Ý CHƠI LẠI</button>
+          )}
+        </div>
+      )}
+      {room.status === 'expired' && <p className="text-amber-300 text-center p-4">Phòng đã đóng. Hãy rời phòng để tạo hoặc tham gia phòng khác.</p>}
       {/* 10S REVEAL COUNTDOWN PHASE */}
       {isRevealing ? (
         <div className="my-auto flex flex-col items-center justify-center text-center space-y-6 py-6">
@@ -576,13 +599,13 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
             </div>
             {betAmt > 0 && (
               <div className="text-emerald-400">
-                Thắng nhận: +{winnerNetGain.toLocaleString()} Xu (Phí 5% giá phòng)
+                Lãi khi thắng: +{winnerNetGain.toLocaleString()} Xu (phí 5%)
               </div>
             )}
           </div>
 
           {/* Waiting for Guest Banner */}
-          {!hasGuestJoined && (
+          {!hasGuestJoined && room.status === 'waiting' && (
             <div className="card-glass p-5 text-center space-y-4 border-amber-500/30 bg-slate-900/90">
               <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-2xl mx-auto animate-pulse">
                 ⏳
@@ -672,7 +695,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
           )}
 
           {/* Move Choices when room is ready */}
-          {hasGuestJoined && !myMoveLocked && (
+          {isPlayer && hasGuestJoined && room?.status === 'ready' && !myMoveLocked && (
             <div className="space-y-3">
               <div className="card-glass p-3 flex items-center justify-between border-amber-500/40 bg-amber-500/10">
                 <div className="flex items-center gap-2 text-amber-300 text-xs font-bold">
@@ -733,7 +756,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
           )}
 
           {/* My Move Locked Indicator */}
-          {hasGuestJoined && myMoveLocked && (
+          {hasGuestJoined && room?.status === 'ready' && myMoveLocked && (
             <div className="card-glass p-6 text-center space-y-3 border-emerald-500/30 bg-emerald-500/5">
               <div className="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 text-2xl mx-auto">
                 ✓

@@ -12,7 +12,7 @@ import {
 import { authMiddleware } from '../middleware/auth.middleware';
 import { gamePlayRateLimiter } from '../middleware/rateLimit.middleware';
 import { validateBody } from '../middleware/validate.middleware';
-import { createRoomSchema, joinRoomSchema, roomMoveSchema } from '../validators';
+import { createRoomSchema, joinRoomSchema, roomMoveSchema, resetRoomSchema } from '../validators';
 
 const router = Router();
 
@@ -22,7 +22,7 @@ router.post('/join', authMiddleware, gamePlayRateLimiter, validateBody(joinRoomS
 router.get('/:roomCode', authMiddleware, getRoomHandler);
 router.post('/:roomCode/spectate', authMiddleware, spectateRoomHandler);
 router.post('/:roomCode/move', authMiddleware, gamePlayRateLimiter, validateBody(roomMoveSchema), playRoomMoveHandler);
-router.post('/:roomCode/reset', authMiddleware, gamePlayRateLimiter, resetRoomHandler);
+router.post('/:roomCode/reset', authMiddleware, gamePlayRateLimiter, validateBody(resetRoomSchema), resetRoomHandler);
 router.post('/:roomCode/leave', authMiddleware, leaveRoomHandler);
 
 export default router;

@@ -11,8 +11,6 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.split(' ')[1];
-    } else if (req.query && typeof req.query.token === 'string') {
-      token = req.query.token;
     } else if (req.body && typeof req.body.token === 'string') {
       token = req.body.token;
     }
@@ -32,6 +30,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
       return sendError(res, 'Người dùng không tồn tại trong hệ thống', 401);
     }
 
+    if (userResult.rows[0].is_blocked) return sendError(res, 'Tài khoản đã bị khóa', 403);
     req.user = userResult.rows[0];
     next();
   } catch (error) {

@@ -41,9 +41,9 @@ export function verifyTelegramInitData(initData: string, botToken: string): { is
       return { isValid: false };
     }
 
-    // Remove hash and signature before building dataCheckString for HMAC validation
+    // HMAC includes every field except hash (including signature when present).
     urlParams.delete('hash');
-    urlParams.delete('signature');
+    if (new Set(paramNames).size !== paramNames.length) return { isValid: false };
 
     // 1. Verify auth_date to prevent replay attacks (MAX 24 hours expiry)
     if (!authDateStr) {
@@ -51,7 +51,7 @@ export function verifyTelegramInitData(initData: string, botToken: string): { is
       return { isValid: false };
     }
 
-    const authDate = parseInt(authDateStr, 10);
+    const authDate = /^\d+$/.test(authDateStr) ? Number(authDateStr) : NaN;
     const now = Math.floor(Date.now() / 1000);
     const MAX_EXPIRY_SECONDS = 86400; // 24 hours
 
@@ -98,9 +98,10 @@ export function verifyTelegramInitData(initData: string, botToken: string): { is
     let user: TelegramUser | undefined;
     if (userParam) {
       user = JSON.parse(userParam);
+      if (!user || !Number.isSafeInteger(user.id) || user.id <= 0 || typeof user.first_name !== 'string' || !user.first_name.trim()) return { isValid: false };
     }
 
-    return { isValid: true, user };
+    return { isValid: Boolean(user), user };
   } catch (error: any) {
     console.error('[Telegram Auth Error]', error.message || error);
     return { isValid: false };

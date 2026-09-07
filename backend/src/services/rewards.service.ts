@@ -118,6 +118,7 @@ export async function claimReward(userId: number, rewardType: string): Promise<{
 
   try {
     await client.query('BEGIN');
+    await client.query("SELECT set_config('app.coin_reason', 'daily_reward', true)");
 
     // Insert claim record
     await client.query(

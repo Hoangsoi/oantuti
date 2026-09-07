@@ -1,3 +1,4 @@
+import { readSettings } from './settings.service';
 import { query, pool } from '../database';
 import { Room, Move, User } from '../types';
 import { determineResult } from './game.service';
@@ -105,551 +106,284 @@ function generateBotRoomName(profileName: string, betAmount: number): string {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-async function getOrCreateBotUser(profile: typeof VIRTUAL_BOT_PROFILES[0]): Promise<User> {
-  const check = await query<User>('SELECT * FROM users WHERE telegram_id = $1', [profile.tgId]);
-  if (check.rows.length > 0) return check.rows[0];
-
-  const avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${profile.seed}`;
-  const res = await query<User>(
-    `INSERT INTO users (telegram_id, first_name, photo_url, rating, coins, referral_code)
-     VALUES ($1, $2, $3, 1200, 9999999, $4)
-     RETURNING *`,
-    [profile.tgId, profile.name, avatar, `REF_BOT_${Math.abs(profile.tgId)}`]
-  );
-  return res.rows[0];
-}
-
-export async function ensureVirtualRooms(): Promise<void> {
-  try {
-    // Get currently active bot host_ids in waiting rooms
-    const activeBotHostsRes = await query<{ host_id: number }>(
-      "SELECT host_id FROM rooms WHERE status = 'waiting' AND is_bot_room = true"
-    );
-    const activeBotHostIds = new Set(activeBotHostsRes.rows.map((r) => r.host_id));
-
-    // Filter available bot profiles whose botUser.id is NOT currently active
-    const availableProfiles = [];
-    for (const profile of VIRTUAL_BOT_PROFILES) {
-      const botUser = await getOrCreateBotUser(profile);
-      if (!activeBotHostIds.has(botUser.id)) {
-        availableProfiles.push({ profile, botUser });
-      }
-    }
-
-    const currentCount = activeBotHostIds.size;
-    const TARGET_BOT_ROOMS = Math.min(22, VIRTUAL_BOT_PROFILES.length);
-
-    if (currentCount < TARGET_BOT_ROOMS && availableProfiles.length > 0) {
-      const needed = TARGET_BOT_ROOMS - currentCount;
-      const shuffled = availableProfiles.sort(() => Math.random() - 0.5);
-
-      for (let i = 0; i < Math.min(needed, shuffled.length); i++) {
-        const { profile, botUser } = shuffled[i];
-        const betAmount = BET_TIERS[Math.floor(Math.random() * BET_TIERS.length)];
-        let roomCode = generateRoomCode();
-        const roomName = generateBotRoomName(profile.name, betAmount);
-
-        await query(
-          `INSERT INTO rooms (room_code, host_id, bet_amount, room_name, password, status, is_bot_room)
-           VALUES ($1, $2, $3, $4, NULL, 'waiting', true)`,
-          [roomCode, botUser.id, betAmount, roomName]
-        );
-      }
-    }
-  } catch (err) {
-    console.error('[Virtual Room Service] Exception ensuring virtual rooms:', err);
-  }
-}
-
-export async function getWaitingRooms(): Promise<Room[]> {
-  // Auto-expire waiting rooms where host has exited or stopped polling for > 30 seconds (or old bot rooms > 3 minutes for dynamic lobby rotation)
-  try {
-    await query(
-      `UPDATE rooms
-       SET status = 'expired', updated_at = CURRENT_TIMESTAMP
-       WHERE status = 'waiting'
-         AND (
-           (is_bot_room = false AND updated_at < (CURRENT_TIMESTAMP - INTERVAL '30 seconds'))
-           OR
-           (is_bot_room = true AND created_at < (CURRENT_TIMESTAMP - INTERVAL '3 minutes'))
-         )`
-    );
-  } catch (err) {
-    console.error('Lỗi tự động thu hồi phòng chờ bỏ dở:', err);
-  }
-
-  await ensureVirtualRooms();
-
-  const res = await query(
-    `SELECT r.*,
-            (r.password IS NOT NULL AND r.password != '') as has_password,
-            h.first_name as host_name, h.photo_url as host_avatar
-     FROM rooms r
-     JOIN users h ON r.host_id = h.id
-     WHERE r.status = 'waiting'
-     ORDER BY r.created_at DESC
-     LIMIT 50`
-  );
-  return res.rows.map((r) => ({ ...r, password: undefined }));
-}
-
-export async function createRoom(
-  hostId: number,
-  betAmount: number = 0,
-  roomName?: string,
-  password?: string
-): Promise<Room> {
-  const safeBet = Math.max(0, Math.floor(betAmount));
-
-  // If player is in an active match in progress ('ready'), prevent creating new room until match ends
-  const existingActive = await query<Room>(
-    "SELECT room_code FROM rooms WHERE host_id = $1 AND status = 'ready'",
-    [hostId]
-  );
-  if (existingActive.rows.length > 0) {
-    throw new Error(
-      `Bạn đang có 1 trận đấu đang diễn ra (#${existingActive.rows[0].room_code}). Vui lòng hoàn thành ván đấu trước khi tạo phòng mới!`
-    );
-  }
-
-  // Auto-expire any unjoined waiting rooms hosted by this user
-  await query(
-    "UPDATE rooms SET status = 'expired', updated_at = CURRENT_TIMESTAMP WHERE host_id = $1 AND status = 'waiting'",
-    [hostId]
-  );
-
-  const userRes = await query<User>('SELECT first_name, coins FROM users WHERE id = $1', [hostId]);
-  if (userRes.rows.length === 0) throw new Error('Người dùng không tồn tại');
-  const user = userRes.rows[0];
-
-  if (safeBet > 0 && user.coins < safeBet) {
-    throw new Error(`Số dư Xu Game của bạn không đủ (${safeBet.toLocaleString()} Xu). Vui lòng nạp thêm Xu Game!`);
-  }
-
-  const finalRoomName = roomName && roomName.trim() ? roomName.trim() : `Phòng của ${user.first_name || 'Chủ phòng'}`;
-  const finalPassword = password && password.trim() ? password.trim() : null;
-
-  let roomCode = generateRoomCode();
-  let attempts = 0;
-
-  while (attempts < 5) {
-    const check = await query('SELECT id FROM rooms WHERE room_code = $1 AND status != $2', [roomCode, 'completed']);
-    if (check.rows.length === 0) break;
-    roomCode = generateRoomCode();
-    attempts++;
-  }
-
-  await query(
-    `INSERT INTO rooms (room_code, host_id, bet_amount, room_name, password, status, is_bot_room)
-     VALUES ($1, $2, $3, $4, $5, 'waiting', false)`,
-    [roomCode, hostId, safeBet, finalRoomName, finalPassword]
-  );
-
-  return getRoomState(hostId, roomCode);
-}
-
-export async function joinRoom(guestId: number, roomCode: string, inputPassword?: string): Promise<Room> {
-  const cleanCode = roomCode.trim();
-  const roomRes = await query<Room>('SELECT * FROM rooms WHERE room_code = $1', [cleanCode]);
-
-  if (roomRes.rows.length === 0) {
-    throw new Error('Mã phòng không tồn tại');
-  }
-
-  const room = roomRes.rows[0];
-
-  if (room.host_id === guestId) {
-    return getRoomState(guestId, cleanCode);
-  }
-
-  // Password verification if room is password protected
-  if (room.password && room.password.trim() !== '') {
-    if (!inputPassword || inputPassword.trim() !== room.password.trim()) {
-      throw new Error('Mật khẩu phòng đấu không chính xác! Vui lòng nhập đúng khóa phòng.');
-    }
-  }
-
-  if (room.status === 'completed') {
-    throw new Error('Phòng đấu này đã kết thúc');
-  }
-
-  if (room.guest_id && room.guest_id !== guestId) {
-    throw new Error('Phòng đấu này đã đủ 2 người chơi');
-  }
-
-  if (room.bet_amount > 0) {
-    const guestRes = await query<User>('SELECT coins FROM users WHERE id = $1', [guestId]);
-    if (guestRes.rows.length === 0 || guestRes.rows[0].coins < room.bet_amount) {
-      throw new Error(`Số dư Xu của bạn không đủ để tham gia phòng cược ${room.bet_amount.toLocaleString()} Xu`);
-    }
-  }
-
-  await query(
-    `UPDATE rooms 
-     SET guest_id = $1, status = 'ready', updated_at = CURRENT_TIMESTAMP
-     WHERE id = $2`,
-    [guestId, room.id]
-  );
-
-  return getRoomState(guestId, cleanCode);
-}
-
-export async function spectateRoom(userId: number, roomCode: string): Promise<Room> {
-  const cleanCode = roomCode.trim();
-  const roomRes = await query<Room>('SELECT * FROM rooms WHERE room_code = $1', [cleanCode]);
-  if (roomRes.rows.length === 0) throw new Error('Phòng đấu không tồn tại');
-
-  const room = roomRes.rows[0];
-  if (room.password && room.password.trim() !== '') {
-    throw new Error('Phòng có khóa mật khẩu không hỗ trợ vào xem trực tiếp');
-  }
-
-  await query('UPDATE rooms SET spectator_count = spectator_count + 1 WHERE id = $1', [room.id]);
-  return getRoomState(userId, cleanCode);
-}
-
-function getLosingMove(winningMove: Move): Move {
-  if (winningMove === 'rock') return 'scissors';
-  if (winningMove === 'paper') return 'rock';
-  return 'paper'; // if winningMove is 'scissors'
-}
-
-export async function getRoomState(userId: number, roomCode: string): Promise<Room> {
-  const cleanCode = roomCode.trim();
-  const res = await query(
-    `SELECT r.*,
-            (r.password IS NOT NULL AND r.password != '') as has_password,
-            h.first_name as host_name, h.photo_url as host_avatar,
-            g.first_name as guest_name, g.photo_url as guest_avatar
-     FROM rooms r
-     JOIN users h ON r.host_id = h.id
-     LEFT JOIN users g ON r.guest_id = g.id
-     WHERE r.room_code = $1`,
-    [cleanCode]
-  );
-
-  if (res.rows.length === 0) {
-    throw new Error('Không tìm thấy phòng đấu');
-  }
-
-  const room = res.rows[0];
-  const isHost = Number(room.host_id) === Number(userId);
-  const isGuest = Number(room.guest_id) === Number(userId);
-
-  // Auto-resolve timed out rooms if in 'ready' status for >= 10 seconds: punish timed-out player with a LOSS!
-  if (room.status === 'ready') {
-    const elapsedSec = (Date.now() - new Date(room.updated_at || room.created_at).getTime()) / 1000;
-    if (elapsedSec >= 10) {
-      try {
-        if (room.host_move && !room.guest_move && room.guest_id) {
-          // Guest timed out -> assign Guest a losing move so Guest loses!
-          const losingGuestMove = getLosingMove(room.host_move as Move);
-          await playRoomMove(room.guest_id, cleanCode, losingGuestMove);
-        } else if (room.guest_move && !room.host_move) {
-          // Host timed out -> assign Host a losing move so Host loses!
-          const losingHostMove = getLosingMove(room.guest_move as Move);
-          await playRoomMove(room.host_id, cleanCode, losingHostMove);
-        } else if (!room.host_move && !room.guest_move) {
-          // Both timed out -> assign both 'rock' (draw)
-          await playRoomMove(room.host_id, cleanCode, 'rock');
-          if (room.guest_id) {
-            await playRoomMove(room.guest_id, cleanCode, 'rock');
-          }
-        }
-
-        // Re-fetch updated room state after auto-completing
-        const updatedRes = await query(
-          `SELECT r.*,
-                  (r.password IS NOT NULL AND r.password != '') as has_password,
-                  h.first_name as host_name, h.photo_url as host_avatar,
-                  g.first_name as guest_name, g.photo_url as guest_avatar
-           FROM rooms r
-           JOIN users h ON r.host_id = h.id
-           LEFT JOIN users g ON r.guest_id = g.id
-           WHERE r.room_code = $1`,
-          [cleanCode]
-        );
-        if (updatedRes.rows.length > 0) {
-          Object.assign(room, updatedRes.rows[0]);
-        }
-      } catch (err) {
-        console.error('Error auto-resolving timed out room:', err);
-      }
-    }
-  }
-
-  if (isHost && room.status === 'waiting') {
-    query("UPDATE rooms SET updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND status = 'waiting'", [room.id]).catch(() => {});
-  }
-
-  const has_host_locked = !!room.host_move;
-  const has_guest_locked = !!room.guest_move;
-
-  let safeHostMove = room.host_move;
-  let safeGuestMove = room.guest_move;
-
-  // Check if requesting user is a Company Account (Tài khoản công ty)
-  let isCompanyAccount = false;
-  try {
-    const userCheck = await query<User>('SELECT is_company_account FROM users WHERE id = $1', [userId]);
-    if (userCheck.rows.length > 0 && userCheck.rows[0].is_company_account) {
-      isCompanyAccount = true;
-    }
-  } catch (e) {}
-
-  if (room.status !== 'completed' && !isCompanyAccount) {
-    if (!isHost) safeHostMove = null;
-    if (!isGuest) safeGuestMove = null;
-  }
-
-  return {
-    ...room,
-    password: undefined, // Never leak plain room password
-    host_move: safeHostMove,
-    guest_move: safeGuestMove,
-    has_host_locked,
-    has_guest_locked,
-    is_company_account: isCompanyAccount,
-  };
-}
-
-async function processReferralCommissions(
-  client: any,
-  playerId: number,
-  betAmount: number,
-  roomId: number
-): Promise<void> {
-  if (betAmount <= 0) return;
-
-  const TIER_RATES = [0.010, 0.004, 0.003, 0.002, 0.001]; // F1: 1.0%, F2: 0.4%, F3: 0.3%, F4: 0.2%, F5: 0.1%
-  let currentUserId = playerId;
-
-  for (let level = 1; level <= 5; level++) {
-    const parentRes = await client.query('SELECT referred_by FROM users WHERE id = $1', [currentUserId]);
-    if (parentRes.rows.length === 0 || !parentRes.rows[0].referred_by) {
-      break;
-    }
-
-    const referrerId = parentRes.rows[0].referred_by;
-    const rate = TIER_RATES[level - 1];
-    const commissionAmount = Math.max(1, Math.floor(betAmount * rate));
-
-    if (commissionAmount > 0) {
-      await client.query('UPDATE users SET coins = coins + $1 WHERE id = $2', [commissionAmount, referrerId]);
-
-      await client.query(
-        `INSERT INTO referral_commissions (referrer_id, referred_id, level, amount, room_id)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [referrerId, playerId, level, commissionAmount, roomId]
-      );
-    }
-
-    currentUserId = referrerId;
-  }
-}
-
-export async function playRoomMove(userId: number, roomCode: string, move: Move): Promise<Room> {
-  if (!['rock', 'paper', 'scissors'].includes(move)) {
-    throw new Error('Nước đi không hợp lệ');
-  }
-
+async function inRoomTransaction<T>(work: (client: import('pg').PoolClient) => Promise<T>): Promise<T> {
   const client = await pool.connect();
-
   try {
     await client.query('BEGIN');
-
-    const roomRes = await client.query<Room>('SELECT * FROM rooms WHERE room_code = $1 FOR UPDATE', [roomCode.trim()]);
-    if (roomRes.rows.length === 0) {
-      throw new Error('Phòng không tồn tại');
-    }
-
-    const room = roomRes.rows[0];
-
-    // If room is completed from a previous round, auto-reset it for the new round
-    if (room.status === 'completed') {
-      await client.query(
-        `UPDATE rooms 
-         SET host_move = NULL, guest_move = NULL, status = CASE WHEN guest_id IS NOT NULL THEN 'ready' ELSE 'waiting' END, winner_id = NULL, result = NULL, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $1`,
-        [room.id]
-      );
-      room.host_move = null;
-      room.guest_move = null;
-      room.status = room.guest_id ? 'ready' : 'waiting';
-      room.winner_id = null;
-      room.result = null;
-    }
-
-    const isHost = Number(room.host_id) === Number(userId);
-    const isGuest = Number(room.guest_id) === Number(userId);
-
-    if (!isHost && !isGuest) {
-      throw new Error('Bạn không phải người chơi trong phòng này');
-    }
-
-    let newHostMove = room.host_move;
-    let newGuestMove = room.guest_move;
-
-    if (isHost) {
-      if (room.host_move) throw new Error('Bạn đã khóa nước đi rồi');
-      newHostMove = move;
-    } else {
-      if (room.guest_move) throw new Error('Bạn đã khóa nước đi rồi');
-      newGuestMove = move;
-    }
-
-    // ----------------------------------------------------------------------
-    // VIRTUAL BOT ROOM RIGGED MOVE RESOLUTION ENGINE
-    // ----------------------------------------------------------------------
-    if (room.is_bot_room && isGuest && !newHostMove) {
-      const botWinRate = parseInt(process.env.BOT_WIN_RATE || '70', 10);
-      const roll = Math.floor(Math.random() * 100);
-
-      if (roll < botWinRate) {
-        if (newGuestMove === 'rock') newHostMove = 'paper';
-        else if (newGuestMove === 'paper') newHostMove = 'scissors';
-        else if (newGuestMove === 'scissors') newHostMove = 'rock';
-      } else {
-        if (newGuestMove === 'rock') newHostMove = 'scissors';
-        else if (newGuestMove === 'paper') newHostMove = 'rock';
-        else if (newGuestMove === 'scissors') newHostMove = 'paper';
-      }
-    }
-
-    let status: Room['status'] = room.status;
-    let winnerId: number | null = null;
-    let gameResult: any = null;
-    let houseFee = 0;
-
-    if (newHostMove && newGuestMove) {
-      status = 'completed';
-      const hostOutcome = determineResult(newHostMove, newGuestMove);
-      gameResult = hostOutcome;
-
-      const hostRes = await client.query<User>('SELECT * FROM users WHERE id = $1 FOR UPDATE', [room.host_id]);
-      const guestRes = await client.query<User>('SELECT * FROM users WHERE id = $1 FOR UPDATE', [room.guest_id]);
-
-      const hostUser = hostRes.rows[0];
-      const guestUser = guestRes.rows[0];
-
-      let hostRatingChange = 0;
-      let guestRatingChange = 0;
-
-      const betAmount = room.bet_amount || 0;
-      houseFee = Math.floor(betAmount * 0.05); // Platform fee is 5% of the room bet amount
-      const winnerNetGain = betAmount - houseFee;
-
-      if (hostOutcome === 'win') {
-        winnerId = room.host_id;
-        hostRatingChange = 12;
-        guestRatingChange = -8;
-
-        await client.query(
-          'UPDATE users SET rating = rating + 12, coins = coins + $1, wins = wins + 1, total_matches = total_matches + 1, current_streak = current_streak + 1 WHERE id = $2',
-          [winnerNetGain, room.host_id]
-        );
-
-        await client.query(
-          'UPDATE users SET rating = GREATEST(0, rating - 8), coins = GREATEST(0, coins - $1), losses = losses + 1, total_matches = total_matches + 1, current_streak = 0 WHERE id = $2',
-          [betAmount, room.guest_id]
-        );
-      } else if (hostOutcome === 'lose') {
-        winnerId = room.guest_id;
-        hostRatingChange = -8;
-        guestRatingChange = 12;
-
-        await client.query(
-          'UPDATE users SET rating = GREATEST(0, rating - 8), coins = GREATEST(0, coins - $1), losses = losses + 1, total_matches = total_matches + 1, current_streak = 0 WHERE id = $2',
-          [betAmount, room.host_id]
-        );
-
-        await client.query(
-          'UPDATE users SET rating = rating + 12, coins = coins + $1, wins = wins + 1, total_matches = total_matches + 1, current_streak = current_streak + 1 WHERE id = $2',
-          [winnerNetGain, room.guest_id]
-        );
-      } else {
-        await client.query('UPDATE users SET draws = draws + 1, total_matches = total_matches + 1 WHERE id = $1', [room.host_id]);
-        await client.query('UPDATE users SET draws = draws + 1, total_matches = total_matches + 1 WHERE id = $1', [room.guest_id]);
-      }
-
-      await client.query(
-        `INSERT INTO matches (player_id, opponent_type, player_move, opponent_move, result, rating_before, rating_change, rating_after)
-         VALUES ($1, 'pvp', $2, $3, $4, $5, $6, $7)`,
-        [room.host_id, newHostMove, newGuestMove, hostOutcome, hostUser.rating, hostRatingChange, Math.max(0, hostUser.rating + hostRatingChange)]
-      );
-
-      const guestOutcome = hostOutcome === 'win' ? 'lose' : hostOutcome === 'lose' ? 'win' : 'draw';
-      await client.query(
-        `INSERT INTO matches (player_id, opponent_type, player_move, opponent_move, result, rating_before, rating_change, rating_after)
-         VALUES ($1, 'pvp', $2, $3, $4, $5, $6, $7)`,
-        [room.guest_id, newGuestMove, newHostMove, guestOutcome, guestUser.rating, guestRatingChange, Math.max(0, guestUser.rating + guestRatingChange)]
-      );
-
-      // Distribute 5-Level Referral Commissions & Track VIP Wager Progression for Real Users
-      if (betAmount > 0) {
-        if (hostUser && hostUser.telegram_id && !String(hostUser.telegram_id).startsWith('-')) {
-          await processReferralCommissions(client, room.host_id, betAmount, room.id);
-          await recordWagerAndCheckVipUpgrade(client, room.host_id, betAmount);
-        }
-
-        if (guestUser && room.guest_id && guestUser.telegram_id && !String(guestUser.telegram_id).startsWith('-')) {
-          await processReferralCommissions(client, room.guest_id, betAmount, room.id);
-          await recordWagerAndCheckVipUpgrade(client, room.guest_id, betAmount);
-        }
-      }
-    }
-
-    await client.query(
-      `UPDATE rooms 
-       SET host_move = $1, guest_move = $2, status = $3, winner_id = $4, result = $5, fee_amount = $6, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $7`,
-      [newHostMove, newGuestMove, status, winnerId, gameResult, houseFee, room.id]
-    );
-
+    // Serialize room accounting, including referral ancestors, across processes.
+    // Individual wallet operations still lock user rows and remain independent.
+    await client.query('SELECT pg_advisory_xact_lock(718204)');
+    const result = await work(client);
     await client.query('COMMIT');
-
-    ensureVirtualRooms();
-
-    return getRoomState(userId, roomCode);
+    return result;
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
-  } finally {
-    client.release();
+  } finally { client.release(); }
+}
+
+async function lockedRoom(client: import('pg').PoolClient, code: string): Promise<Room> {
+  const res = await client.query<Room>('SELECT * FROM rooms WHERE room_code = $1 FOR UPDATE', [code.trim()]);
+  if (!res.rows.length) throw new Error('Phòng không tồn tại');
+  return res.rows[0];
+}
+
+function requirePlayer(room: Room, userId: number) {
+  if (Number(room.host_id) !== userId && Number(room.guest_id) !== userId) throw new Error('Bạn không phải người chơi trong phòng này');
+}
+
+async function fundRound(client: import('pg').PoolClient, room: Room) {
+  if (!room.guest_id || room.host_id === room.guest_id) throw new Error('Cần hai người chơi để bắt đầu');
+  const players = await client.query<User>('SELECT * FROM users WHERE id = ANY($1::int[]) ORDER BY id FOR UPDATE', [[room.host_id, room.guest_id]]);
+  if (players.rows.length !== 2 || players.rows.some(u => u.is_blocked || u.coins < room.bet_amount)) {
+    throw new Error('Một người chơi bị khóa hoặc không đủ Xu cho ván mới');
+  }
+  const active = await client.query("SELECT id FROM rooms WHERE id <> $1 AND status = 'ready' AND (host_id = ANY($2::int[]) OR guest_id = ANY($2::int[]))", [room.id, [room.host_id, room.guest_id]]);
+  if (active.rows.length) throw new Error('Một người chơi đang tham gia ván khác');
+  await client.query("UPDATE rooms SET status='expired' WHERE id <> $1 AND status='waiting' AND host_id = ANY($2::int[])", [room.id,[room.host_id,room.guest_id]]);
+  const nextRound = room.round_no + 1;
+  await client.query("SELECT set_config('app.coin_reason', $1, true)", [`room:${room.id}:round:${nextRound}:escrow`]);
+  await client.query('UPDATE users SET coins = coins - $1, updated_at = CURRENT_TIMESTAMP WHERE id = ANY($2::int[])', [room.bet_amount, [room.host_id, room.guest_id]]);
+  const host = players.rows.find(u => u.id === room.host_id)!;
+  const guest = players.rows.find(u => u.id === room.guest_id)!;
+  await client.query(`INSERT INTO room_rounds(room_id, round_no, host_id, guest_id, host_is_house, guest_is_house, bet_amount)
+    VALUES ($1,$2,$3,$4,$5,$6,$7)`, [room.id, nextRound, room.host_id, room.guest_id, Number(host.telegram_id) < 0 || !!host.is_company_account, Number(guest.telegram_id) < 0 || !!guest.is_company_account, room.bet_amount]);
+  await client.query(`UPDATE rooms SET status = 'ready', round_no = $2, escrow_funded = true,
+    host_move = NULL, guest_move = NULL, winner_id = NULL, result = NULL, fee_amount = 0,
+    host_rematch = false, guest_rematch = false, round_deadline = CURRENT_TIMESTAMP + INTERVAL '10 seconds',
+    updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [room.id, nextRound]);
+}
+
+export async function ensureVirtualRooms(): Promise<void> {
+  await inRoomTransaction(async client => {
+    await client.query(`UPDATE rooms SET status = 'expired', updated_at = CURRENT_TIMESTAMP
+      WHERE status = 'waiting' AND ((is_bot_room AND created_at < CURRENT_TIMESTAMP - INTERVAL '3 minutes')
+        OR (NOT is_bot_room AND updated_at < CURRENT_TIMESTAMP - INTERVAL '30 seconds'))`);
+    // Fetch existing profiles once; only seed missing users.
+    const bots = await client.query<User>('SELECT * FROM users WHERE telegram_id = ANY($1::bigint[])', [VIRTUAL_BOT_PROFILES.map(p => p.tgId)]);
+    const byTg = new Map(bots.rows.map(u => [Number(u.telegram_id), u]));
+    for (const profile of VIRTUAL_BOT_PROFILES) {
+      if (!byTg.has(profile.tgId)) {
+        const res = await client.query<User>(`INSERT INTO users(telegram_id, first_name, photo_url, rating, coins, referral_code)
+          VALUES ($1,$2,$3,1200,9999999,$4) ON CONFLICT(telegram_id) DO UPDATE SET telegram_id = EXCLUDED.telegram_id RETURNING *`,
+          [profile.tgId, profile.name, `https://api.dicebear.com/7.x/bottts/svg?seed=${profile.seed}`, `REF_BOT_${Math.abs(profile.tgId)}`]);
+        byTg.set(profile.tgId, res.rows[0]);
+      }
+    }
+    const active = await client.query<{host_id:number; status:string}>("SELECT host_id, status FROM rooms WHERE is_bot_room AND status IN ('waiting','ready')");
+    const occupied = new Set(active.rows.map(r => r.host_id));
+    let needed = 22 - active.rows.filter(r => r.status === 'waiting').length;
+    for (const profile of [...VIRTUAL_BOT_PROFILES].sort(() => Math.random() - 0.5)) {
+      if (needed <= 0) break;
+      const bot = byTg.get(profile.tgId)!;
+      if (occupied.has(bot.id) || bot.is_blocked) continue;
+      const tiers = BET_TIERS.filter(b => b <= bot.coins);
+      const bet = tiers[Math.floor(Math.random() * tiers.length)] || 0;
+      const created = await client.query(`INSERT INTO rooms(room_code, host_id, bet_amount, room_name, status, is_bot_room)
+        VALUES ($1,$2,$3,$4,'waiting',true) ON CONFLICT(room_code) DO NOTHING RETURNING id`,
+        [generateRoomCode(), bot.id, bet, generateBotRoomName(profile.name, bet)]);
+      if (created.rows.length) needed--;
+    }
+  });
+}
+
+export async function getWaitingRooms(): Promise<Room[]> {
+  const res = await query(`SELECT r.*, (r.password IS NOT NULL AND r.password <> '') AS has_password,
+    h.first_name AS host_name, h.photo_url AS host_avatar FROM rooms r JOIN users h ON h.id = r.host_id
+    WHERE r.status = 'waiting' AND NOT h.is_blocked ORDER BY r.created_at DESC LIMIT 50`);
+  return res.rows.map(r => ({ ...r, password: undefined }));
+}
+
+export async function createRoom(hostId: number, betAmount = 0, roomName?: string, password?: string): Promise<Room> {
+  if (!Number.isInteger(betAmount) || betAmount < 0 || betAmount > 1000000) throw new Error('Mức cược không hợp lệ');
+  const code = await inRoomTransaction(async client => {
+    const user = (await client.query<User>('SELECT * FROM users WHERE id = $1 FOR UPDATE', [hostId])).rows[0];
+    if (!user || user.is_blocked || user.coins < betAmount) throw new Error('Tài khoản không đủ điều kiện hoặc không đủ Xu');
+    const active = await client.query("SELECT id FROM rooms WHERE status = 'ready' AND (host_id = $1 OR guest_id = $1)", [hostId]);
+    if (active.rows.length) throw new Error('Vui lòng hoàn thành ván đang chơi');
+    await client.query("UPDATE rooms SET status = 'expired' WHERE host_id = $1 AND status = 'waiting'", [hostId]);
+    for (let i = 0; i < 20; i++) {
+      const code = generateRoomCode();
+      const res = await client.query(`INSERT INTO rooms(room_code,host_id,bet_amount,room_name,password,status,is_bot_room)
+        VALUES ($1,$2,$3,$4,$5,'waiting',false) ON CONFLICT(room_code) DO NOTHING RETURNING id`,
+        [code,hostId,betAmount,roomName?.trim() || `Phòng của ${user.first_name}`,password?.trim() || null]);
+      if (res.rows.length) return code;
+    }
+    throw new Error('Chưa tạo được mã phòng, vui lòng thử lại');
+  });
+  return getRoomState(hostId, code);
+}
+
+export async function joinRoom(guestId: number, roomCode: string, inputPassword?: string): Promise<Room> {
+  await inRoomTransaction(async client => {
+    const room = await lockedRoom(client, roomCode);
+    if (room.status === 'expired' || room.status === 'completed') throw new Error('Phòng đã kết thúc');
+    if (room.host_id === guestId || room.guest_id === guestId) return;
+    if (room.status !== 'waiting' || room.guest_id) throw new Error('Phòng đã đủ người chơi');
+    if (room.password && room.password !== inputPassword?.trim()) throw new Error('Mật khẩu phòng không chính xác');
+    room.guest_id = guestId;
+    await client.query('UPDATE rooms SET guest_id = $2 WHERE id = $1', [room.id, guestId]);
+    await fundRound(client, room);
+  });
+  return getRoomState(guestId, roomCode);
+}
+
+export async function spectateRoom(userId: number, roomCode: string): Promise<Room> {
+  return getRoomState(userId, roomCode);
+}
+
+export async function getRoomState(userId: number, roomCode: string): Promise<Room> {
+  const res = await query(`SELECT r.*, (r.password IS NOT NULL AND r.password <> '') AS has_password,
+    h.first_name AS host_name, h.photo_url AS host_avatar, g.first_name AS guest_name, g.photo_url AS guest_avatar
+    FROM rooms r JOIN users h ON h.id = r.host_id LEFT JOIN users g ON g.id = r.guest_id WHERE room_code = $1`, [roomCode.trim()]);
+  const room = res.rows[0];
+  if (!room) throw new Error('Không tìm thấy phòng đấu');
+  const isHost = Number(room.host_id) === userId;
+  const isGuest = Number(room.guest_id) === userId;
+  if (room.password && !isHost && !isGuest) throw new Error('Phòng có mật khẩu không hỗ trợ xem');
+  if (isHost && room.status === 'waiting') {
+    await query("UPDATE rooms SET updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND status = 'waiting'", [room.id]);
+  }
+  // Item 7: retain the existing company-account visibility policy.
+  const requester = (await query<User>('SELECT is_company_account FROM users WHERE id = $1', [userId])).rows[0];
+  const isCompanyAccount = !!requester?.is_company_account;
+  return { ...room, password: undefined,
+    host_move: room.status === 'completed' || isHost || isCompanyAccount ? room.host_move : null,
+    guest_move: room.status === 'completed' || isGuest || isCompanyAccount ? room.guest_move : null,
+    has_host_locked: !!room.host_move, has_guest_locked: !!room.guest_move, is_company_account: isCompanyAccount };
+}
+
+async function payCommissions(client: import('pg').PoolClient, playerId: number, bet: number, room: Room) {
+  const visited = new Set([playerId]);
+  let current = playerId;
+  const rates = [0.010, 0.004, 0.003, 0.002, 0.001];
+  for (let i = 0; i < rates.length; i++) {
+    const parent = (await client.query('SELECT referred_by FROM users WHERE id = $1', [current])).rows[0]?.referred_by;
+    if (!parent || visited.has(parent)) break;
+    visited.add(parent);
+    const amount = Math.floor(bet * rates[i]);
+    if (amount > 0) {
+      await client.query("SELECT set_config('app.coin_reason', $1, true)", [`room:${room.id}:round:${room.round_no}:referral:${playerId}:${i+1}`]);
+      await client.query('UPDATE users SET coins = coins + $1 WHERE id = $2', [amount, parent]);
+      await client.query('INSERT INTO referral_commissions(referrer_id,referred_id,level,amount,room_id,round_no) VALUES ($1,$2,$3,$4,$5,$6)', [parent,playerId,i+1,amount,room.id,room.round_no]);
+    }
+    current = parent;
   }
 }
 
-export async function resetRoom(userId: number, roomCode: string): Promise<Room> {
-  const cleanCode = roomCode.trim();
-  const roomRes = await query<Room>('SELECT * FROM rooms WHERE room_code = $1', [cleanCode]);
-  if (roomRes.rows.length === 0) throw new Error('Phòng không tồn tại');
-  const room = roomRes.rows[0];
-
-  if (Number(room.host_id) !== Number(userId) && Number(room.guest_id) !== Number(userId)) {
-    throw new Error('Bạn không có quyền thao tác trên phòng này');
+async function settleRound(client: import('pg').PoolClient, room: Room, hostMove: Move, guestMove: Move) {
+  if (room.status !== 'ready' || !room.escrow_funded || !room.guest_id) throw new Error('Ván chưa được giữ tiền');
+  const players = (await client.query<User>('SELECT * FROM users WHERE id = ANY($1::int[]) ORDER BY id FOR UPDATE', [[room.host_id, room.guest_id]])).rows;
+  const outcome = determineResult(hostMove, guestMove);
+  const fee = outcome === 'draw' ? 0 : Math.floor(room.bet_amount * 0.05);
+  const winner = outcome === 'draw' ? null : outcome === 'win' ? room.host_id : room.guest_id;
+  const completed = await client.query(`UPDATE room_rounds SET status = 'completed', winner_id = $3, result = $4,
+    fee_amount = $5, completed_at = CURRENT_TIMESTAMP WHERE room_id = $1 AND round_no = $2 AND status = 'ready' RETURNING id`,
+    [room.id,room.round_no,winner,outcome,fee]);
+  if (!completed.rows.length) throw new Error('Ván đã được quyết toán');
+  for (const player of players) {
+    const isHost = player.id === room.host_id;
+    const result = outcome === 'draw' ? 'draw' : player.id === winner ? 'win' : 'lose';
+    const ratingChange = result === 'win' ? 12 : result === 'lose' ? -8 : 0;
+    const payout = result === 'draw' ? room.bet_amount : result === 'win' ? room.bet_amount * 2 - fee : 0;
+    await client.query("SELECT set_config('app.coin_reason', $1, true)", [`room:${room.id}:round:${room.round_no}:settlement`]);
+    await client.query(`UPDATE users SET coins = coins + $2, rating = GREATEST(0,rating + $3),
+      wins = wins + $4, losses = losses + $5, draws = draws + $6, total_matches = total_matches + 1,
+      best_streak = CASE WHEN $4 = 1 THEN GREATEST(best_streak,current_streak+1) ELSE best_streak END,
+      current_streak = CASE WHEN $4 = 1 THEN current_streak+1 WHEN $5 = 1 THEN 0 ELSE current_streak END,
+      updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [player.id,payout,ratingChange,Number(result==='win'),Number(result==='lose'),Number(result==='draw')]);
+    await client.query(`INSERT INTO matches(player_id,opponent_type,player_move,opponent_move,result,rating_before,rating_change,rating_after)
+      VALUES ($1,'pvp',$2,$3,$4,$5,$6,$7)`, [player.id,isHost?hostMove:guestMove,isHost?guestMove:hostMove,result,player.rating,ratingChange,Math.max(0,player.rating+ratingChange)]);
+    if (outcome !== 'draw' && room.bet_amount > 0 && Number(player.telegram_id) > 0) {
+      await payCommissions(client, player.id, room.bet_amount, room);
+      await recordWagerAndCheckVipUpgrade(client, player.id, room.bet_amount);
+    }
   }
+  await client.query(`UPDATE rooms SET host_move=$2,guest_move=$3,status='completed',winner_id=$4,result=$5,
+    fee_amount=$6,escrow_funded=false,round_deadline=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=$1`, [room.id,hostMove,guestMove,winner,outcome,fee]);
+}
 
-  await query(
-    `UPDATE rooms 
-     SET host_move = NULL, guest_move = NULL, status = CASE WHEN guest_id IS NOT NULL THEN 'ready' ELSE 'waiting' END, winner_id = NULL, result = NULL, updated_at = CURRENT_TIMESTAMP
-     WHERE id = $1`,
-    [room.id]
-  );
+function losingMove(move: Move): Move { return move === 'rock' ? 'scissors' : move === 'paper' ? 'rock' : 'paper'; }
+async function timeoutRound(client: import('pg').PoolClient, room: Room) {
+  const host = room.host_move || (room.guest_move ? losingMove(room.guest_move) : 'rock');
+  const guest = room.guest_move || (room.host_move ? losingMove(room.host_move) : 'rock');
+  await settleRound(client, room, host, guest);
+}
 
-  return getRoomState(userId, cleanCode);
+export async function resolveRoomTimeout(roomCode: string): Promise<void> {
+  await inRoomTransaction(async client => {
+    const room = await lockedRoom(client, roomCode);
+    if (room.status === 'ready' && room.round_deadline && new Date(room.round_deadline).getTime() <= Date.now()) await timeoutRound(client, room);
+  });
+}
+
+export async function playRoomMove(userId: number, roomCode: string, move: Move, roundNo: number): Promise<Room> {
+  if (!['rock','paper','scissors'].includes(move)) throw new Error('Nước đi không hợp lệ');
+  await inRoomTransaction(async client => {
+    const room = await lockedRoom(client, roomCode);
+    requirePlayer(room, userId);
+    if (roundNo !== room.round_no) throw new Error('Ván đã thay đổi, vui lòng tải lại');
+    if (room.status === 'completed') return;
+    if (room.status !== 'ready' || !room.escrow_funded) throw new Error('Ván chưa sẵn sàng');
+    if (room.round_deadline && new Date(room.round_deadline).getTime() <= Date.now()) { await timeoutRound(client, room); return; }
+    const blocked = (await client.query('SELECT is_blocked FROM users WHERE id = $1', [userId])).rows[0]?.is_blocked;
+    if (blocked) throw new Error('Tài khoản đã bị khóa');
+    const isHost = room.host_id === userId;
+    const existing = isHost ? room.host_move : room.guest_move;
+    if (existing) { if (existing === move) return; throw new Error('Bạn đã khóa nước đi'); }
+    let host = isHost ? move : room.host_move;
+    const guest = isHost ? room.guest_move : move;
+    // Item 7: preserve configured bot win rate and move selection behavior.
+    if (room.is_bot_room && !isHost && !host && guest) {
+      const { botWinRate } = await readSettings(client);
+      host = Math.floor(Math.random()*100) < botWinRate ? losingMove(losingMove(guest)) : losingMove(guest);
+    }
+    if (host && guest) await settleRound(client, room, host, guest);
+    else await client.query('UPDATE rooms SET host_move=$2,guest_move=$3 WHERE id=$1', [room.id,host,guest]);
+  });
+  return getRoomState(userId, roomCode);
+}
+
+export async function resetRoom(userId: number, roomCode: string, roundNo: number): Promise<Room> {
+  await inRoomTransaction(async client => {
+    const room = await lockedRoom(client, roomCode);
+    requirePlayer(room,userId);
+    // A repeated consent request must never create a second round.
+    if (room.round_no === roundNo + 1 && room.status === 'ready') return;
+    if (room.round_no !== roundNo || room.status !== 'completed') throw new Error('Chỉ được chơi lại sau khi ván kết thúc');
+    room.host_rematch = !!room.host_rematch || userId === room.host_id || !!room.is_bot_room;
+    room.guest_rematch = !!room.guest_rematch || userId === room.guest_id;
+    await client.query('UPDATE rooms SET host_rematch=$2,guest_rematch=$3 WHERE id=$1', [room.id,room.host_rematch,room.guest_rematch]);
+    if (room.host_rematch && room.guest_rematch) await fundRound(client,room);
+  });
+  return getRoomState(userId,roomCode);
 }
 
 export async function leaveRoom(userId: number, roomCode: string): Promise<void> {
-  const cleanCode = roomCode.trim();
-  const roomRes = await query<Room>('SELECT * FROM rooms WHERE room_code = $1', [cleanCode]);
-  if (roomRes.rows.length === 0) return;
-  const room = roomRes.rows[0];
+  await inRoomTransaction(async client => {
+    const room = await lockedRoom(client,roomCode);
+    requirePlayer(room,userId);
+    if (room.status === 'ready') throw new Error('Ván đang diễn ra; hãy hoàn thành hoặc chờ hết thời gian');
+    if (room.status === 'expired') return;
+    await client.query("UPDATE rooms SET status='expired', updated_at=CURRENT_TIMESTAMP WHERE id=$1", [room.id]);
+  });
+}
 
-  if (Number(room.host_id) === Number(userId)) {
-    // Host leaves -> immediately expire room so it is removed from lobby waiting list
-    await query("UPDATE rooms SET status = 'expired', updated_at = CURRENT_TIMESTAMP WHERE id = $1", [room.id]);
-  } else if (Number(room.guest_id) === Number(userId)) {
-    // Guest leaves -> revert room back to waiting
-    await query("UPDATE rooms SET guest_id = NULL, status = 'waiting', host_move = NULL, guest_move = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1", [room.id]);
-  }
+export function startRoomMaintenance() {
+  let running = false;
+  let lastLobbyUpdate = 0;
+  const tick = async () => {
+    if (running) return;
+    running = true;
+    try {
+      const due = await query("SELECT room_code FROM rooms WHERE status='ready' AND round_deadline <= CURRENT_TIMESTAMP LIMIT 100");
+      for (const room of due.rows) await resolveRoomTimeout(room.room_code);
+      if (Date.now()-lastLobbyUpdate >= 15000) { await ensureVirtualRooms(); lastLobbyUpdate=Date.now(); }
+    } catch (error) { console.error('Room maintenance failed', error); }
+    finally { running=false; }
+  };
+  void tick();
+  const timer = setInterval(() => void tick(),1000);
+  timer.unref();
+  return () => clearInterval(timer);
 }
