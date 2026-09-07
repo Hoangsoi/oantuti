@@ -832,8 +832,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
 
                 <div className="card-glass p-3.5 border-cyan-500/40 bg-cyan-950/20 text-center space-y-1 col-span-2">
                   <div className="text-[10px] font-bold text-cyan-300 uppercase tracking-wider">💰 TIỀN DƯ</div>
-                  <div className="text-xl font-black text-cyan-400">
-                    +{(gameStats.totalBotCompanySurplus || 0).toLocaleString()} Xu
+                  <div className={`text-xl font-black ${ (gameStats.totalBotCompanySurplus || 0) < 0 ? 'text-red-400' : 'text-cyan-400' }`}>
+                    {(gameStats.totalBotCompanySurplus || 0) > 0 ? '+' : ''}{(gameStats.totalBotCompanySurplus || 0).toLocaleString('vi-VN')} Xu
                   </div>
                 </div>
               </div>
@@ -842,24 +842,37 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
               <div className="card-glass p-4 border-emerald-500/50 bg-emerald-950/20 space-y-2">
                 <div className="flex items-center justify-between text-xs font-bold border-b border-emerald-500/20 pb-2">
                   <span className="text-slate-300">Tổng phế thu được (5% phòng đấu):</span>
-                  <span className="font-black text-emerald-400">+{(gameStats.totalRakeCollected || 0).toLocaleString()} Xu</span>
+                  <span className="font-black text-emerald-400">+{(gameStats.totalRakeCollected || 0).toLocaleString('vi-VN')} Xu</span>
                 </div>
 
                 <div className="flex items-center justify-between text-xs font-bold border-b border-emerald-500/20 pb-2">
                   <span className="text-slate-300">Tiền dư:</span>
-                  <span className="font-black text-cyan-400">+{(gameStats.totalBotCompanySurplus || 0).toLocaleString()} Xu</span>
+                  <span className={`font-black ${ (gameStats.totalBotCompanySurplus || 0) < 0 ? 'text-red-400' : 'text-cyan-400' }`}>
+                    {(gameStats.totalBotCompanySurplus || 0) > 0 ? '+' : ''}{(gameStats.totalBotCompanySurplus || 0).toLocaleString('vi-VN')} Xu
+                  </span>
                 </div>
 
                 <div className="flex items-center justify-between text-xs font-bold border-b border-emerald-500/20 pb-2">
                   <span className="text-slate-300">Đã trích chi trả Hoa Hồng Đại Lý (F1-F5):</span>
-                  <span className="font-black text-purple-400">-{(gameStats.totalCommissionsPaid || 0).toLocaleString()} Xu</span>
+                  <span className="font-black text-purple-400">-{(gameStats.totalCommissionsPaid || 0).toLocaleString('vi-VN')} Xu</span>
                 </div>
 
                 <div className="flex items-center justify-between text-xs font-black pt-1">
                   <span className="text-amber-300">💵 PHẾ RÒNG THỰC NHẬN (LỢI NHUẬN):</span>
-                  <span className="text-sm font-black text-amber-400 bg-amber-500/20 px-2.5 py-1 rounded-xl border border-amber-500/40 shadow-sm">
-                    +{(gameStats.netHouseProfit !== undefined ? gameStats.netHouseProfit : ((gameStats.totalRakeCollected || 0) + (gameStats.totalBotCompanySurplus || 0) - (gameStats.totalCommissionsPaid || 0))).toLocaleString()} Xu
-                  </span>
+                  {(() => {
+                    const net = gameStats.netHouseProfit !== undefined
+                      ? gameStats.netHouseProfit
+                      : ((gameStats.totalRakeCollected || 0) + (gameStats.totalBotCompanySurplus || 0) - (gameStats.totalCommissionsPaid || 0));
+                    return (
+                      <span className={`text-sm font-black px-2.5 py-1 rounded-xl border shadow-sm ${
+                        net < 0
+                          ? 'bg-red-500/20 text-red-400 border-red-500/40'
+                          : 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+                      }`}>
+                        {net > 0 ? '+' : ''}{net.toLocaleString('vi-VN')} Xu
+                      </span>
+                    );
+                  })()}
                 </div>
               </div>
 
