@@ -200,7 +200,7 @@ test('withdrawal destination is frozen, approval/rejection and deposits are one-
   const u=await user(50000);
   await wallet.linkBankAccount(u.id,'Bank A','11111','Test A','wallet-a');
   const request=await wallet.createWithdrawRequest(u.id,'bank',10000);
-  await wallet.linkBankAccount(u.id,'Bank B','22222','Test B','wallet-b');
+  await assert.rejects(wallet.linkBankAccount(u.id,'Bank B','22222','Test B','wallet-b'),/không thể sửa đổi/);
   const pending=await admin.getPendingTransactions();
   assert.equal(pending.find(t=>t.id===request.transaction.id).account_number,'11111');
   await admin.rejectTransaction(request.transaction.id);

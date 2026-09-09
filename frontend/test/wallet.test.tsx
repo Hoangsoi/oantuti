@@ -56,4 +56,30 @@ describe('withdrawal turnover UI', () => {
     expect(screen.getByText('ĐỦ ĐIỀU KIỆN ✓')).toBeTruthy();
     expect(screen.getByRole('button', { name: /GỬI YÊU CẦU RÚT TIỀN/ })).toHaveProperty('disabled', false);
   });
+
+  it('shows linked account details as read-only', async () => {
+    vi.mocked(api.getWalletInfo).mockResolvedValue(wallet as any);
+    render(<WalletPage currentUser={user} onUserUpdated={vi.fn()} onBackHome={vi.fn()} />);
+    await waitFor(() => expect(api.getWalletInfo).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: /Tài Khoản/ }));
+    expect(screen.getByText('ĐÃ LIÊN KẾT THÀNH CÔNG')).toBeTruthy();
+    expect(screen.getByText(/không thể sửa đổi/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /LƯU THÔNG TIN/ })).toBeNull();
+  });
+
+  it('confirms a first link and immediately locks the account form', async () => {
+    const unlinked={...wallet,bankAccount:null};
+    const linked={id:2,user_id:1,bank_name:'MBBank (Ngân Hàng Quân Đội)',account_number:'0988999999',account_holder:'NGUYEN VAN HUNG'};
+    vi.mocked(api.getWalletInfo).mockResolvedValue(unlinked as any);
+    vi.mocked(api.linkBankAccount).mockResolvedValue(linked as any);
+    render(<WalletPage currentUser={user} onUserUpdated={vi.fn()} onBackHome={vi.fn()} />);
+    await waitFor(() => expect(api.getWalletInfo).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: /Tài Khoản/ }));
+    fireEvent.change(screen.getByLabelText('Số tài khoản ngân hàng:'),{target:{value:'0988999999'}});
+    fireEvent.change(screen.getByLabelText(/Tên chủ tài khoản/),{target:{value:'Nguyen Van Hung'}});
+    fireEvent.click(screen.getByRole('button', { name: /LƯU THÔNG TIN/ }));
+    await waitFor(()=>expect(screen.getByText('ĐÃ LIÊN KẾT THÀNH CÔNG')).toBeTruthy());
+    expect(screen.getByText(/Đã liên kết tài khoản thành công/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /LƯU THÔNG TIN/ })).toBeNull();
+  });
 });

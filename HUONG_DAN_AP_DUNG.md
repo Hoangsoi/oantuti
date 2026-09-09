@@ -13,7 +13,7 @@
 - Chơi lại yêu cầu hai người đồng ý; bot tự đồng ý. Không thể reset/rời ván đang chạy để xóa nước đi. Khi người dùng đóng ứng dụng, máy chủ vẫn xử lý hết giờ; tiền được quyết toán theo quy tắc timeout hiện có.
 - Mỗi ván có số thứ tự, thời hạn chọn 20 giây và bản ghi quyết toán riêng. Khách thường không chọn đúng hạn sẽ thua trước nước đã khóa của đối thủ. Tài khoản công ty không bị xử thua do hết thời gian, nhận nước đối thủ với chu kỳ cập nhật dưới một giây và được chọn hoặc đổi nước trong 10 giây chờ mở kết quả; phía khách được báo như cả hai đã khóa. Nước cuối cùng của tài khoản công ty mới được quyết toán. Gửi lặp không trả tiền lần hai. Giữ khóa trong DB cho các thao tác phòng nhằm tránh ghi đè khi nhiều yêu cầu đến đồng thời.
 - Sổ biến động Xu và ván đã quyết toán không cho sửa/xóa. Chức năng xóa tài khoản chuyển thành vô hiệu hóa, giữ số dư/lịch sử. Nút xóa toàn bộ lịch sử đã gỡ.
-- Cấu hình nhận tiền đọc từ DB trước biến môi trường; không dùng tài khoản nhận tiền mẫu. Mức nạp USDT là 0,4–4.000 USDT (10.000–100.000.000 Xu). Đơn rút mới lưu nơi nhận tiền tại thời điểm tạo.
+- Cấu hình nhận tiền đọc từ DB trước biến môi trường; không dùng tài khoản nhận tiền mẫu. Mức nạp USDT là 0,4–4.000 USDT (10.000–100.000.000 Xu). Tài khoản nhận tiền của khách chỉ liên kết được một lần, sau đó cả API và giao diện đều khóa sửa đổi. Đơn rút mới lưu nơi nhận tiền tại thời điểm tạo.
 - Mỗi khoản nạp được duyệt tăng doanh số cược bắt buộc đúng bằng số Xu nạp. Chỉ ván có kết quả thắng hoặc thua làm tăng tiến độ; hòa không tính. Cược trước khoản nạp không được dùng trước cho khoản nạp mới. Backend chặn lệnh rút khi chưa đủ và ví hiển thị tiến độ.
 - Sảnh không khởi tạo 40 bot trong từng request. Tác vụ nền bổ sung phòng mỗi 15 giây và kiểm tra hết giờ mỗi giây. Đọc hồ sơ không đếm lại toàn bộ lịch sử trận.
 
@@ -43,4 +43,4 @@
 
 Các trường hợp gồm: HMAC và dữ liệu giả, thiếu secret production, CORS, tài khoản khóa, route topup bị gỡ, giữ tiền/rút tiền, request lặp, cạnh tranh vào phòng, chơi lại/hòa/hết giờ, cấu hình bền vững, quyền công ty và bot giữ nguyên, địa chỉ rút cố định, duyệt/từ chối một lần, đối soát sổ Xu và lợi nhuận nhà.
 
-Kết quả trên máy ngày 09/09/2026: 18 kiểm thử backend và 10 kiểm thử giao diện đạt; lint và build đạt. Npm audit của backend/frontend không còn cảnh báo sau khi cập nhật thư viện. Kiểm tra này không chứng minh toàn bộ hệ thống không có lỗ hổng và không thay thế kiểm tra môi trường triển khai.
+Kết quả trên máy ngày 09/09/2026: 18 kiểm thử backend và 12 kiểm thử giao diện đạt; lint và build đạt. Npm audit của backend/frontend không còn cảnh báo sau khi cập nhật thư viện. Kiểm tra này không chứng minh toàn bộ hệ thống không có lỗ hổng và không thay thế kiểm tra môi trường triển khai.

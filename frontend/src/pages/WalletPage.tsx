@@ -142,7 +142,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
     try {
       const bank = await api.linkBankAccount(bankName, accountNumber, accountHolder, usdtAddress);
       triggerHapticNotification('success');
-      setSuccessMsg('Cập nhật thông tin Tài khoản & Ví thành công!');
+      setSuccessMsg('Đã liên kết tài khoản thành công. Thông tin này không thể sửa đổi.');
       if (walletData) {
         setWalletData({ ...walletData, bankAccount: bank });
       }
@@ -312,6 +312,11 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
       {error && (
         <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-bold rounded-xl text-center">
           {error}
+        </div>
+      )}
+      {successMsg && !createdTx && (
+        <div role="status" className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-bold rounded-xl text-center">
+          ✅ {successMsg}
         </div>
       )}
 
@@ -584,8 +589,23 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
                 TẠO YÊU CẦU RÚT TIỀN (TỐI THIỂU 10,000 XU)
               </h3>
 
-              {walletData && (() => {
-                const turnover = walletData.withdrawalTurnover;
+              {(() => {
+                const turnover = walletData?.withdrawalTurnover;
+                if (!turnover) {
+                  return (
+                    <div className="rounded-2xl border p-4 space-y-3 bg-slate-900/80 border-slate-700">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="text-xs font-black text-white">TIẾN ĐỘ DOANH SỐ CƯỢC</div>
+                          <div className="text-[10px] text-slate-400 mt-1">Đang tải điều kiện rút tiền...</div>
+                        </div>
+                      </div>
+                      <div className="h-3 rounded-full bg-slate-950 overflow-hidden border border-slate-800">
+                        <div role="progressbar" aria-label="Tiến độ doanh số cược" aria-valuemin={0} aria-valuemax={100} aria-valuenow={0} className="h-full w-0 rounded-full bg-amber-500" />
+                      </div>
+                    </div>
+                  );
+                }
                 return (
                   <div className={`rounded-2xl border p-4 space-y-3 ${
                     turnover.isEligible
@@ -767,6 +787,21 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
           {/* TAB 3: LINK BANK & USDT ACCOUNT */}
           {/* ------------------------------------------------------------------ */}
           {activeTab === 'bank' && (
+            walletData?.bankAccount ? (
+              <div className="card-glass p-5 space-y-4 border-emerald-500/40 bg-emerald-500/5">
+                <div role="status" className="text-center space-y-2">
+                  <div className="text-3xl">✅</div>
+                  <h3 className="text-sm font-black text-emerald-400 uppercase tracking-wider">ĐÃ LIÊN KẾT THÀNH CÔNG</h3>
+                  <p className="text-xs font-bold text-slate-300">Tài khoản nhận tiền đã được xác nhận và không thể sửa đổi.</p>
+                </div>
+                <div className="bg-slate-950/80 rounded-2xl border border-slate-800 p-4 text-xs space-y-2">
+                  <div><span className="text-slate-400">Ngân hàng:</span> <strong className="text-white">{walletData.bankAccount.bank_name}</strong></div>
+                  <div><span className="text-slate-400">Số tài khoản:</span> <strong className="text-amber-400">{walletData.bankAccount.account_number}</strong></div>
+                  <div><span className="text-slate-400">Chủ tài khoản:</span> <strong className="text-white">{walletData.bankAccount.account_holder}</strong></div>
+                  <div className="pt-2 border-t border-slate-800"><span className="text-slate-400">Ví USDT TRC20:</span> <strong className="text-emerald-400 break-all">{walletData.bankAccount.usdt_address || 'Không đăng ký'}</strong></div>
+                </div>
+              </div>
+            ) : (
             <form onSubmit={handleSaveBank} className="card-glass p-5 space-y-4 border-slate-700/80">
               <h3 className="text-sm font-black text-amber-400 text-center uppercase tracking-wider">
                 LIÊN KẾT TÀI KHOẢN NGÂN HÀNG & VÍ USDT
@@ -774,8 +809,9 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
 
               <div className="space-y-3 text-xs font-bold text-slate-300">
                 <div className="space-y-1">
-                  <label className="block">Tên Ngân hàng:</label>
+                  <label htmlFor="bank-name" className="block">Tên Ngân hàng:</label>
                   <select
+                    id="bank-name"
                     value={bankName}
                     onChange={(e) => setBankName(e.target.value)}
                     className="bg-slate-900 border border-slate-700 text-white p-3 rounded-xl w-full focus:outline-none"
@@ -787,8 +823,9 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block">Số tài khoản ngân hàng:</label>
+                  <label htmlFor="bank-account-number" className="block">Số tài khoản ngân hàng:</label>
                   <input
+                    id="bank-account-number"
                     type="text"
                     placeholder="Nhập số tài khoản ngân hàng"
                     value={accountNumber}
@@ -799,8 +836,9 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block">Tên chủ tài khoản (Viết hoa không dấu):</label>
+                  <label htmlFor="bank-account-holder" className="block">Tên chủ tài khoản (Viết hoa không dấu):</label>
                   <input
+                    id="bank-account-holder"
                     type="text"
                     placeholder="VD: NGUYEN VAN A"
                     value={accountHolder}
@@ -812,10 +850,11 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
 
                 {/* USDT Wallet Address Field */}
                 <div className="space-y-1 pt-2 border-t border-slate-800">
-                  <label className="block text-emerald-400 flex items-center gap-1 font-black">
+                  <label htmlFor="usdt-address" className="block text-emerald-400 flex items-center gap-1 font-black">
                     <span>₮ Địa chỉ ví USDT nhận tiền (Mạng TRC20):</span>
                   </label>
                   <input
+                    id="usdt-address"
                     type="text"
                     placeholder="Nhập địa chỉ ví USDT TRC20 (VD: T9yD14Nj...)"
                     value={usdtAddress}
@@ -836,6 +875,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
                 <span>LƯU THÔNG TIN TÀI KHOẢN & VÍ 💾</span>
               </button>
             </form>
+            )
           )}
 
           {/* ------------------------------------------------------------------ */}

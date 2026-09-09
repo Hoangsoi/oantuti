@@ -22,7 +22,7 @@ export async function linkBankHandler(req: Request, res: Response) {
     if (!req.user) return sendError(res, 'Chưa đăng nhập', 401);
     const { bankName, accountNumber, accountHolder, usdtAddress } = req.body;
     const bankAccount = await linkBankAccount(req.user.id, bankName, accountNumber, accountHolder, usdtAddress);
-    return sendSuccess(res, bankAccount, 'Cập nhật thông tin tài khoản thành công');
+    return sendSuccess(res, bankAccount, 'Liên kết tài khoản thành công');
   } catch (error: any) {
     return sendError(res, error.message || 'Không thể liên kết thông tin tài khoản', 400);
   }

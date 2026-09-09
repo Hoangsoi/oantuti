@@ -63,15 +63,14 @@ export async function linkBankAccount(
   const res = await query<BankAccount>(
     `INSERT INTO bank_accounts (user_id, bank_name, account_number, account_holder, usdt_address)
      VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (user_id) DO UPDATE
-     SET bank_name = EXCLUDED.bank_name,
-         account_number = EXCLUDED.account_number,
-         account_holder = EXCLUDED.account_holder,
-         usdt_address = COALESCE(EXCLUDED.usdt_address, bank_accounts.usdt_address),
-         updated_at = CURRENT_TIMESTAMP
+     ON CONFLICT (user_id) DO NOTHING
      RETURNING *`,
     [userId, cleanBank, cleanNumber, cleanHolder, cleanUsdt]
   );
+
+  if (!res.rows[0]) {
+    throw new Error('Tài khoản nhận tiền đã được liên kết và không thể sửa đổi');
+  }
 
   return res.rows[0];
 }
