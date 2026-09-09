@@ -98,8 +98,8 @@ export async function playMatch(userId: number, playerMove: Move): Promise<{ mat
 
     // Insert match record
     const matchRes = await client.query<Match>(
-      `INSERT INTO matches (player_id, opponent_type, player_move, opponent_move, result, rating_before, rating_change, rating_after)
-       VALUES ($1, 'bot', $2, $3, $4, $5, $6, $7)
+      `INSERT INTO matches (player_id, opponent_type, player_move, opponent_move, result, rating_before, rating_change, rating_after, coins_change)
+       VALUES ($1, 'bot', $2, $3, $4, $5, $6, $7, 0)
        RETURNING *`,
       [userId, playerMove, opponentMove, result, ratingBefore, ratingChange, ratingAfter]
     );

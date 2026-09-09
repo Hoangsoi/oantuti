@@ -247,13 +247,15 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onUserUpdated, o
                       </span>
                     </div>
 
-                    {m.coins_change !== undefined && (
+                    {m.coins_change !== undefined && m.coins_change !== null ? (
                       <div className="font-extrabold text-[11px] flex items-center gap-1">
                         <Coins className="w-3 h-3 text-amber-400" />
                         <span className={m.coins_change > 0 ? 'text-emerald-400' : m.coins_change < 0 ? 'text-red-400' : 'text-slate-400'}>
                           {m.coins_change > 0 ? `+${m.coins_change.toLocaleString()} Xu` : m.coins_change < 0 ? `${m.coins_change.toLocaleString()} Xu` : '0 Xu'}
                         </span>
                       </div>
+                    ) : (
+                      <div className="font-bold text-[10px] text-slate-500">Chưa có dữ liệu Xu</div>
                     )}
                   </div>
                 </div>

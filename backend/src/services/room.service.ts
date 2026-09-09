@@ -306,8 +306,9 @@ async function settleRound(client: import('pg').PoolClient, room: Room, hostMove
       best_streak = CASE WHEN $4 = 1 THEN GREATEST(best_streak,current_streak+1) ELSE best_streak END,
       current_streak = CASE WHEN $4 = 1 THEN current_streak+1 WHEN $5 = 1 THEN 0 ELSE current_streak END,
       updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [player.id,payout,ratingChange,Number(result==='win'),Number(result==='lose'),Number(result==='draw')]);
-    await client.query(`INSERT INTO matches(player_id,opponent_type,player_move,opponent_move,result,rating_before,rating_change,rating_after)
-      VALUES ($1,'pvp',$2,$3,$4,$5,$6,$7)`, [player.id,isHost?hostMove:guestMove,isHost?guestMove:hostMove,result,player.rating,ratingChange,Math.max(0,player.rating+ratingChange)]);
+    const coinsChange = result === 'win' ? room.bet_amount - fee : result === 'lose' ? -room.bet_amount : 0;
+    await client.query(`INSERT INTO matches(player_id,opponent_type,player_move,opponent_move,result,rating_before,rating_change,rating_after,coins_change)
+      VALUES ($1,'pvp',$2,$3,$4,$5,$6,$7,$8)`, [player.id,isHost?hostMove:guestMove,isHost?guestMove:hostMove,result,player.rating,ratingChange,Math.max(0,player.rating+ratingChange),coinsChange]);
     if (outcome !== 'draw' && room.bet_amount > 0 && Number(player.telegram_id) > 0) {
       await client.query(
         `INSERT INTO user_withdrawal_turnover (user_id, required_wager, completed_wager)

@@ -15,6 +15,7 @@
 - Sổ biến động Xu và ván đã quyết toán không cho sửa/xóa. Chức năng xóa tài khoản chuyển thành vô hiệu hóa, giữ số dư/lịch sử. Nút xóa toàn bộ lịch sử đã gỡ.
 - Cấu hình nhận tiền đọc từ DB trước biến môi trường; không dùng tài khoản nhận tiền mẫu. Mức nạp USDT là 0,4–4.000 USDT (10.000–100.000.000 Xu). Tài khoản nhận tiền của khách chỉ liên kết được một lần, sau đó cả API và giao diện đều khóa sửa đổi. Đơn rút mới lưu nơi nhận tiền tại thời điểm tạo.
 - Mỗi khoản nạp được duyệt tăng doanh số cược bắt buộc đúng bằng số Xu nạp. Chỉ ván có kết quả thắng hoặc thua làm tăng tiến độ; hòa không tính. Cược trước khoản nạp không được dùng trước cho khoản nạp mới. Backend chặn lệnh rút khi chưa đủ và ví hiển thị tiến độ.
+- Lịch sử trận lưu biến động Xu của từng người chơi. Migration khôi phục số Xu cho các ván PvP cũ còn bản quyết toán trùng thời điểm; bản ghi quá cũ không đủ dữ liệu được đánh dấu thay vì ước tính.
 - Sảnh không khởi tạo 40 bot trong từng request. Tác vụ nền bổ sung phòng mỗi 15 giây và kiểm tra hết giờ mỗi giây. Đọc hồ sơ không đếm lại toàn bộ lịch sử trận.
 
 ## Những việc cần thực hiện ở môi trường triển khai

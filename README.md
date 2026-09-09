@@ -32,6 +32,7 @@ Frontend: http://localhost:5173. Backend: http://localhost:5000. Chạy thử ng
 - Điểm xếp hạng thắng +12, thua -8, hòa 0; đây không phải công thức ELO theo chênh lệch đối thủ. Thưởng nhiệm vụ có thể tăng điểm.
 - Nạp ngân hàng từ 10.000 VNĐ; USDT từ 0,4 USDT, tỷ giá 25.000 Xu/USDT. Nạp/rút cần admin duyệt; phí rút USDT hiện tại 2 USDT.
 - Mỗi khoản nạp được duyệt tạo yêu cầu doanh số cược 1×. Chỉ ván thắng hoặc thua được tính; ván hòa không tính. Khách chỉ tạo lệnh rút khi tiến độ đạt 100% và có thể xem tiến độ trong tab Rút.
+- Lịch sử ván hiển thị biến động Xu thực tế: thắng PvP là lãi ròng sau phí, thua là âm mức cược, hòa và bot miễn phí là 0 Xu.
 - Cấu hình thanh toán lưu trong DB. Tài khoản ngân hàng/ví nhận tiền của khách chỉ được liên kết một lần và không thể sửa qua ứng dụng; đích nhận của đơn rút được chụp lại khi tạo. Sổ Xu và ván đã quyết toán không thể sửa/xóa qua ứng dụng.
 
 ## Kiểm tra

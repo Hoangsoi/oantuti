@@ -90,6 +90,8 @@ test('escrow prevents withdrawal of staked coins and settle/retry pays once',asy
   await rooms.playRoomMove(g.id,r.room_code,'scissors',r.round_no);
   await rooms.playRoomMove(g.id,r.room_code,'scissors',r.round_no);
   assert.equal(await balance(h.id),19500);assert.equal(await balance(g.id),0);
+  const history=await db.query('SELECT player_id,coins_change FROM matches WHERE player_id=ANY($1::int[]) ORDER BY player_id',[[h.id,g.id]]);
+  assert.deepEqual(history.rows.map(row=>[row.player_id,row.coins_change]),[[h.id,9500],[g.id,-10000]]);
   assert.equal((await db.query('SELECT * FROM room_rounds WHERE room_id=$1',[r.id])).rows.length,1);
   await rooms.resetRoom(h.id,r.room_code,r.round_no);
   await assert.rejects(rooms.resetRoom(g.id,r.room_code,r.round_no),/không đủ/);
@@ -192,7 +194,7 @@ test('settings survive process-env changes and item 7 company visibility/bot beh
   assert.equal(playerWins.host_move,'scissors');assert.equal(playerWins.winner_id,secondPlayer.id);
   const freePlayer=await user();
   const freeWin=await game.playMatch(freePlayer.id,'rock');
-  assert.equal(freeWin.match.opponent_move,'scissors');assert.equal(freeWin.match.result,'win');
+  assert.equal(freeWin.match.opponent_move,'scissors');assert.equal(freeWin.match.result,'win');assert.equal(freeWin.match.coins_change,0);
   await admin.updatePaymentConfig({botWinRate:100});
   const freeLoss=await game.playMatch(freePlayer.id,'rock');
   assert.equal(freeLoss.match.opponent_move,'paper');assert.equal(freeLoss.match.result,'lose');
