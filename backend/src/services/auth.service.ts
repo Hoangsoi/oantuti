@@ -106,8 +106,8 @@ export async function authenticateTelegramUser(initData: string, refCode?: strin
 
     const newRefCode = generateReferralCode(telegramUser.id);
     const insertResult = await query<User>(
-      `INSERT INTO users (telegram_id, first_name, last_name, username, photo_url, rating, referral_code, referred_by)
-       VALUES ($1, $2, $3, $4, $5, 1000, $6, $7)
+      `INSERT INTO users (telegram_id, first_name, last_name, username, photo_url, rating, coins, referral_code, referred_by)
+       VALUES ($1, $2, $3, $4, $5, 1000, 0, $6, $7)
        RETURNING *`,
       [
         telegramUser.id,

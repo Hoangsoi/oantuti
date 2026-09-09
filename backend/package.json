@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "build": "tsc && node -e \"for (const f of ['schema.sql','hardening.sql','withdrawal-turnover.sql','company-grace.sql','match-coins.sql']) {require('fs').mkdirSync('dist/database', {recursive:true}); require('fs').copyFileSync('src/database/'+f,'dist/database/'+f)}\"",
+    "build": "tsc && node -e \"for (const f of ['schema.sql','hardening.sql','withdrawal-turnover.sql','company-grace.sql','match-coins.sql','new-user-zero-balance.sql']) {require('fs').mkdirSync('dist/database', {recursive:true}); require('fs').copyFileSync('src/database/'+f,'dist/database/'+f)}\"",
     "start": "node dist/index.js",
     "migrate": "node dist/database/migrate.js",
     "test": "npm run build && node --test test/security.test.cjs test/integration.test.cjs"

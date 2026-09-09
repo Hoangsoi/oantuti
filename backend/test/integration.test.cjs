@@ -66,6 +66,15 @@ test('migration is repeatable and never purges a matching demo name', async()=> 
   assert.equal((await db.query('SELECT COUNT(*) AS n FROM coin_ledger')).rows[0].n,before);
 });
 
+test('new users default to a zero coin balance', async()=> {
+  serial++;
+  const created = await db.query(
+    'INSERT INTO users(telegram_id,first_name,referral_code) VALUES ($1,$2,$3) RETURNING coins',
+    [serial, 'Zero balance', 'REF_ZERO_' + serial]
+  );
+  assert.equal(created.rows[0].coins, 0);
+});
+
 test('forged Telegram authentication fails before touching user records', async()=> {
   await assert.rejects(auth.authenticateTelegramUser('user='+encodeURIComponent(JSON.stringify({id:8780377211,first_name:'Fake'}))),/không hợp lệ/);
   await assert.rejects(auth.authenticateTelegramUser(''),/không hợp lệ/);

@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
     last_name VARCHAR(255),
     photo_url TEXT,
     rating INT DEFAULT 1000 NOT NULL,
-    coins INT DEFAULT 1000 NOT NULL,
+    coins INT DEFAULT 0 NOT NULL,
     wins INT DEFAULT 0 NOT NULL,
     losses INT DEFAULT 0 NOT NULL,
     draws INT DEFAULT 0 NOT NULL,

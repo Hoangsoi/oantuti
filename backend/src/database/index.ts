@@ -58,7 +58,7 @@ export const initDatabase = async () => {
     await client.query(schemaSql);
 
     // Auto migrations for existing databases
-    await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS coins INT DEFAULT 1000 NOT NULL');
+    await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS coins INT DEFAULT 0 NOT NULL');
     await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT false NOT NULL');
     await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_company_account BOOLEAN DEFAULT FALSE NOT NULL');
     await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS total_wager_amount NUMERIC(18, 4) DEFAULT 0 NOT NULL');
@@ -127,6 +127,10 @@ export const initDatabase = async () => {
       await client.query(fs.readFileSync(path.join(__dirname, 'match-coins.sql'), 'utf8'));
       await client.query('INSERT INTO schema_migrations(version) VALUES (5)');
     }
+    if (!versions.has(6)) {
+      await client.query(fs.readFileSync(path.join(__dirname, 'new-user-zero-balance.sql'), 'utf8'));
+      await client.query('INSERT INTO schema_migrations(version) VALUES (6)');
+    }
     await client.query('COMMIT');
     console.log('✅ Cơ sở dữ liệu Neon PostgreSQL đã được khởi tạo schema và migrations thành công.');
   } catch (error) {
@@ -139,6 +143,6 @@ export const initDatabase = async () => {
 };
 
 export async function assertDatabaseReady() {
-  const result = await query('SELECT version FROM schema_migrations WHERE version = 5');
+  const result = await query('SELECT version FROM schema_migrations WHERE version = 6');
   if (!result.rows.length) throw new Error('Run npm --prefix backend run migrate before starting');
 }
