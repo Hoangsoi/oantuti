@@ -43,4 +43,4 @@
 
 Các trường hợp gồm: HMAC và dữ liệu giả, thiếu secret production, CORS, tài khoản khóa, route topup bị gỡ, giữ tiền/rút tiền, request lặp, cạnh tranh vào phòng, chơi lại/hòa/hết giờ, cấu hình bền vững, quyền công ty và bot giữ nguyên, địa chỉ rút cố định, duyệt/từ chối một lần, đối soát sổ Xu và lợi nhuận nhà.
 
-Kết quả trên máy ngày 09/09/2026: 18 kiểm thử backend và 9 kiểm thử giao diện đạt; lint và build đạt. Npm audit của backend/frontend không còn cảnh báo sau khi cập nhật thư viện. Kiểm tra này không chứng minh toàn bộ hệ thống không có lỗ hổng và không thay thế kiểm tra môi trường triển khai.
+Kết quả trên máy ngày 09/09/2026: 18 kiểm thử backend và 10 kiểm thử giao diện đạt; lint và build đạt. Npm audit của backend/frontend không còn cảnh báo sau khi cập nhật thư viện. Kiểm tra này không chứng minh toàn bộ hệ thống không có lỗ hổng và không thay thế kiểm tra môi trường triển khai.

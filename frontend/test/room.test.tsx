@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { RoomPage } from '../src/pages/RoomPage';
 import { api } from '../src/services/api';
 
@@ -15,10 +15,10 @@ const user = {id:1,first_name:'Host',coins:40000,rating:1000} as any;
 const base = {id:1,room_code:'123456',host_id:1,guest_id:2,round_no:3,bet_amount:10000,
   status:'ready',host_move:null,guest_move:null,has_host_locked:false,has_guest_locked:false,
   round_deadline:new Date(Date.now()+20000).toISOString(),server_time:new Date().toISOString()} as any;
-function show(room = base) {
-  return render(<RoomPage currentUser={user} initialRoom={room} onFinishRoomMatch={vi.fn()} onBackHome={vi.fn()} onOpenTopup={vi.fn()} />);
+function show(room = base, onFinishRoomMatch=vi.fn()) {
+  return render(<RoomPage currentUser={user} initialRoom={room} onFinishRoomMatch={onFinishRoomMatch} onBackHome={vi.fn()} onOpenTopup={vi.fn()} />);
 }
-afterEach(() => {cleanup();vi.clearAllMocks();});
+afterEach(() => {cleanup();vi.useRealTimers();vi.clearAllMocks();});
 
 describe('room lifecycle UI',()=> {
   it('sends the displayed round number with the selected move',async()=> {
@@ -47,6 +47,18 @@ describe('room lifecycle UI',()=> {
     show(graceRoom);
     fireEvent.click(screen.getByRole('button',{name:/KÉO/i}));
     await waitFor(()=>expect(api.playRoomMove).toHaveBeenCalledWith('123456','scissors',3));
+  });
+  it('opens the company result immediately when the shared countdown has already ended',async()=> {
+    vi.useFakeTimers();
+    const finish=vi.fn();
+    const graceRoom={...base,host_move:'paper',guest_move:'rock',has_host_locked:true,has_guest_locked:true,
+      is_company_account:true,company_grace_active:true};
+    vi.mocked(api.getRoomState).mockResolvedValue({
+      ...graceRoom,status:'completed',company_grace_active:false,round_deadline:null,winner_id:1,
+    });
+    show(graceRoom,finish);
+    await act(async()=>{await vi.advanceTimersByTimeAsync(800);});
+    expect(finish).toHaveBeenCalledTimes(1);
   });
   it('shows a pending rematch and hides move buttons until both consent',()=> {
     show({...base,status:'completed',host_rematch:true,guest_rematch:false});

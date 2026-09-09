@@ -44,6 +44,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
   const [isRevealing, setIsRevealing] = useState<boolean>(false);
   const [revealTimeLeft, setRevealTimeLeft] = useState<number>(10);
   const [shuffleIndex, setShuffleIndex] = useState<number>(0);
+  const companyGraceRoundRef = React.useRef<number | null>(initialRoom?.company_grace_active ? initialRoom.round_no : null);
 
   const serverClockOffsetRef = React.useRef(0);
   const applyRoomState = React.useCallback((updated: Room) => {
@@ -59,6 +60,14 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
     return Math.max(0, Math.ceil((new Date(currentRoom.round_deadline).getTime() - serverNow) / 1000));
   }, []);
 
+  useEffect(() => {
+    if (room?.company_grace_active) companyGraceRoundRef.current = room.round_no;
+  }, [room?.company_grace_active, room?.round_no]);
+
+  const completedRevealDelay = React.useCallback((completedRoom: Room) => (
+    companyGraceRoundRef.current === completedRoom.round_no ? 0 : 10
+  ), []);
+
   // 20-second move selection countdown timer in room
   useEffect(() => {
     if (!room || activeTab !== 'lobby' || isRevealing) return;
@@ -71,7 +80,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
         applyRoomState(updated);
         if (updated.status === 'completed' && !updated.host_rematch && !updated.guest_rematch && !isRevealing) {
           setIsRevealing(true);
-          setRevealTimeLeft(10);
+          setRevealTimeLeft(completedRevealDelay(updated));
         }
       }).catch(() => {});
       return;
@@ -82,7 +91,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [room, activeTab, isRevealing, selectionTimeLeft, applyRoomState, getSelectionSecondsLeft]);
+  }, [room, activeTab, isRevealing, selectionTimeLeft, applyRoomState, getSelectionSecondsLeft, completedRevealDelay]);
 
   // Company accounts refresh quickly so an opponent move appears as soon as it is locked.
   const hasFinishedRoomMatchRef = React.useRef<boolean>(false);
@@ -103,7 +112,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
             revealedRoomIdRef.current = roomKey;
             hasFinishedRoomMatchRef.current = false;
             setIsRevealing(true);
-            setRevealTimeLeft(10);
+            setRevealTimeLeft(completedRevealDelay(updated));
           }
         } else if (updated.company_grace_active && !(currentUser?.is_company_account || updated.is_company_account)) {
           setIsRevealing(true);
@@ -118,7 +127,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
     }, currentUser?.is_company_account || room.is_company_account ? 750 : 2000);
 
     return () => clearInterval(interval);
-  }, [room?.room_code, room?.status, room?.is_company_account, currentUser?.is_company_account, activeTab, isRevealing, applyRoomState, getSelectionSecondsLeft]);
+  }, [room?.room_code, room?.status, room?.is_company_account, currentUser?.is_company_account, activeTab, isRevealing, applyRoomState, getSelectionSecondsLeft, completedRevealDelay]);
 
   useEffect(() => {
     if (room?.status === 'ready' && room.round_deadline) {
@@ -292,7 +301,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
 
       if (updated.status === 'completed') {
         setIsRevealing(true);
-        setRevealTimeLeft(10);
+        setRevealTimeLeft(completedRevealDelay(updated));
       } else if (updated.company_grace_active && !(currentUser?.is_company_account || updated.is_company_account)) {
         setIsRevealing(true);
         setRevealTimeLeft(getSelectionSecondsLeft(updated));
