@@ -3,14 +3,6 @@ import { DailyRewardTask, User } from '../types';
 
 const TASKS_DEF = [
   {
-    id: 'daily_login',
-    title: 'Đăng nhập mỗi ngày',
-    description: 'Vào game mỗi ngày nhận +5.000 Xu Game',
-    rewardPoints: 50,
-    rewardCoins: 5000,
-    requiredCount: 1,
-  },
-  {
     id: 'play_5',
     title: 'Chơi 5 trận',
     description: 'Hoàn thành 5 trận đấu bất kỳ trong ngày',
@@ -66,9 +58,7 @@ export async function getUserRewards(userId: number): Promise<DailyRewardTask[]>
     const isClaimed = claimedTypes.has(task.id);
     let currentCount = 0;
 
-    if (task.id === 'daily_login') {
-      currentCount = 1;
-    } else if (task.id === 'play_5') {
+    if (task.id === 'play_5') {
       currentCount = totalMatchesToday;
     } else if (task.id === 'win_3') {
       currentCount = winsToday;
