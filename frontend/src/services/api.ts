@@ -313,6 +313,8 @@ export const api = {
     accountHolder?: string;
     usdtAddress?: string;
     adminTelegramUsername?: string;
+    qrCodeUrl?: string;
+    botWinRate?: number;
   }) => {
     return request<any>('/admin/payment-config', {
       method: 'POST',

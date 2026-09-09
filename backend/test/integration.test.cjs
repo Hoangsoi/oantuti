@@ -34,6 +34,7 @@ db.pool.connect = async () => {
   };
 };
 const rooms = require('../dist/services/room.service');
+const game = require('../dist/services/game.service');
 const wallet = require('../dist/services/wallet.service');
 const admin = require('../dist/services/admin.service');
 const auth = require('../dist/services/auth.service');
@@ -182,6 +183,19 @@ test('settings survive process-env changes and item 7 company visibility/bot beh
   const player=await user(1000000);const ready=await rooms.joinRoom(player.id,bot.room_code);
   const done=await rooms.playRoomMove(player.id,bot.room_code,'rock',ready.round_no);
   assert.equal(done.host_move,'paper');assert.equal(done.winner_id,done.host_id);
+  await admin.updatePaymentConfig({botWinRate:0});
+  assert.equal((await admin.getPaymentConfig()).botWinRate,0);
+  await rooms.ensureVirtualRooms();
+  const losingBot=(await rooms.getWaitingRooms()).find(room=>room.is_bot_room && room.bet_amount<=50000);
+  const secondPlayer=await user(1000000);const secondReady=await rooms.joinRoom(secondPlayer.id,losingBot.room_code);
+  const playerWins=await rooms.playRoomMove(secondPlayer.id,losingBot.room_code,'rock',secondReady.round_no);
+  assert.equal(playerWins.host_move,'scissors');assert.equal(playerWins.winner_id,secondPlayer.id);
+  const freePlayer=await user();
+  const freeWin=await game.playMatch(freePlayer.id,'rock');
+  assert.equal(freeWin.match.opponent_move,'scissors');assert.equal(freeWin.match.result,'win');
+  await admin.updatePaymentConfig({botWinRate:100});
+  const freeLoss=await game.playMatch(freePlayer.id,'rock');
+  assert.equal(freeLoss.match.opponent_move,'paper');assert.equal(freeLoss.match.result,'lose');
 });
 
 test('financial ledger reconciles every balance and admin can clear test data safely',async()=> {

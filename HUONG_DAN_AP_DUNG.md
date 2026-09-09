@@ -2,7 +2,7 @@
 
 ## Phạm vi
 
-Đã sửa mã cho các mục 1–6 và 8–12 trong BAO_CAO_QUET_DU_AN.md. Giữ cơ chế mục 7: tài khoản công ty xem nước đi; bot chọn nước theo tỷ lệ thắng cấu hình, mặc định 70%. Cấu hình bot nay đọc từ DB để không mất sau restart; quy tắc chọn nước được giữ nguyên.
+Đã sửa mã cho các mục 1–6 và 8–12 trong BAO_CAO_QUET_DU_AN.md. Giữ cơ chế mục 7: tài khoản công ty xem nước đi; mọi chế độ bot chọn nước theo tỷ lệ thắng cấu hình, mặc định 70%. Cấu hình bot đọc từ DB để không mất sau restart; mức 0% và 100% được hỗ trợ chính xác.
 
 ## Các thay đổi ảnh hưởng cách vận hành
 

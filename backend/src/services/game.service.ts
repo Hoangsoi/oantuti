@@ -1,7 +1,16 @@
 import { query, pool } from '../database';
 import { GameResult, Match, Move, User } from '../types';
+import { readSettings } from './settings.service';
 
 const MOVES: Move[] = ['rock', 'paper', 'scissors'];
+
+function losingMove(move: Move): Move {
+  return move === 'rock' ? 'scissors' : move === 'paper' ? 'rock' : 'paper';
+}
+
+function winningMove(move: Move): Move {
+  return move === 'rock' ? 'paper' : move === 'paper' ? 'scissors' : 'rock';
+}
 
 export function determineResult(playerMove: Move, opponentMove: Move): GameResult {
   if (playerMove === opponentMove) return 'draw';
@@ -22,14 +31,17 @@ export async function playMatch(userId: number, playerMove: Move): Promise<{ mat
     throw new Error('Lựa chọn không hợp lệ. Phải là rock, paper hoặc scissors');
   }
 
-  // Generate random opponent move (server decision)
-  const opponentMove = MOVES[Math.floor(Math.random() * MOVES.length)];
-  const result = determineResult(playerMove, opponentMove);
-
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
+
+    // Apply the same configured bot win probability used by virtual rooms.
+    const { botWinRate } = await readSettings(client);
+    const opponentMove = Math.floor(Math.random() * 100) < botWinRate
+      ? winningMove(playerMove)
+      : losingMove(playerMove);
+    const result = determineResult(playerMove, opponentMove);
 
     // Fetch user current data with row locking
     const userRes = await client.query<User>('SELECT * FROM users WHERE id = $1 FOR UPDATE', [userId]);

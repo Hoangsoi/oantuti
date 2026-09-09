@@ -1031,8 +1031,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackHome, currentUser, o
                     type="number"
                     min="0"
                     max="100"
-                    value={paymentConfig.botWinRate || 70}
-                    onChange={(e) => setPaymentConfig({ ...paymentConfig, botWinRate: parseInt(e.target.value, 10) || 70 })}
+                    value={paymentConfig.botWinRate ?? 70}
+                    onChange={(e) => setPaymentConfig({
+                      ...paymentConfig,
+                      botWinRate: Number.isNaN(e.currentTarget.valueAsNumber) ? 0 : e.currentTarget.valueAsNumber,
+                    })}
                     className="bg-slate-900 border border-slate-700 text-amber-400 font-black text-sm p-3 rounded-xl w-full focus:outline-none"
                     required
                   />
