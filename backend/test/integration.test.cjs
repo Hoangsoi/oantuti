@@ -125,10 +125,27 @@ test('draw refunds both stakes, pays no commission/VIP and rematch preserves his
 
 test('timeout is server-side and settles once without client polling',async()=> {
   const {h,g,r}=await match();
+  assert.ok(r.server_time, 'room state must include server time for a synchronized countdown');
+  const selectionWindow = Number((await db.query(
+    'SELECT EXTRACT(EPOCH FROM (round_deadline - CURRENT_TIMESTAMP)) AS seconds FROM rooms WHERE id=$1',
+    [r.id]
+  )).rows[0].seconds);
+  assert.ok(selectionWindow >= 19 && selectionWindow <= 21, `selection window was ${selectionWindow}s`);
   await rooms.playRoomMove(h.id,r.room_code,'paper',1);
   await db.query("UPDATE rooms SET round_deadline=CURRENT_TIMESTAMP-INTERVAL '1 second' WHERE id=$1",[r.id]);
   await Promise.all([rooms.resolveRoomTimeout(r.room_code),rooms.resolveRoomTimeout(r.room_code)]);
   assert.equal(await balance(h.id),59500);assert.equal(await balance(g.id),40000);
+});
+
+test('a move submitted after the deadline returns the server-assigned losing move',async()=> {
+  const {h,g,r}=await match();
+  await rooms.playRoomMove(g.id,r.room_code,'rock',1);
+  await db.query("UPDATE rooms SET round_deadline=CURRENT_TIMESTAMP-INTERVAL '1 second' WHERE id=$1",[r.id]);
+  const completed=await rooms.playRoomMove(h.id,r.room_code,'paper',1);
+  assert.equal(completed.status,'completed');
+  assert.equal(completed.host_move,'scissors');
+  assert.equal(completed.guest_move,'rock');
+  assert.equal(completed.winner_id,g.id);
 });
 
 test('settings survive process-env changes and item 7 company visibility/bot behavior remains',async()=> {
@@ -173,6 +190,59 @@ test('withdrawal destination is frozen, approval/rejection and deposits are one-
   await admin.approveTransaction(deposit.id);
   await assert.rejects(admin.approveTransaction(deposit.id),/trạng thái/);
   assert.equal(await balance(u.id),60000);
+});
+
+test('approved deposits require equal non-draw wagering before withdrawal',async()=> {
+  const customer=await user(0), opponent=await user(50000);
+  await wallet.linkBankAccount(customer.id,'Bank A','33333','Customer','wallet-c');
+  const deposit=await wallet.createDepositRequest(customer.id,'bank',10000,'turnover test');
+  await admin.approveTransaction(deposit.id);
+
+  let turnover=(await wallet.getWalletInfo(customer.id)).withdrawalTurnover;
+  assert.deepEqual(turnover,{
+    requiredWager:10000,completedWager:0,remainingWager:10000,progressPercent:0,isEligible:false,
+  });
+  await assert.rejects(wallet.createWithdrawRequest(customer.id,'bank',10000),/cược thêm 10[.,]000 Xu/);
+
+  const drawRoom=await rooms.createRoom(customer.id,4000);
+  const drawReady=await rooms.joinRoom(opponent.id,drawRoom.room_code);
+  await rooms.playRoomMove(customer.id,drawRoom.room_code,'rock',drawReady.round_no);
+  await rooms.playRoomMove(opponent.id,drawRoom.room_code,'rock',drawReady.round_no);
+  turnover=(await wallet.getWalletInfo(customer.id)).withdrawalTurnover;
+  assert.equal(turnover.completedWager,0);
+
+  const room=await rooms.createRoom(customer.id,4000);
+  const ready=await rooms.joinRoom(opponent.id,room.room_code);
+  await rooms.playRoomMove(customer.id,room.room_code,'rock',ready.round_no);
+  await rooms.playRoomMove(opponent.id,room.room_code,'scissors',ready.round_no);
+  turnover=(await wallet.getWalletInfo(customer.id)).withdrawalTurnover;
+  assert.equal(turnover.completedWager,4000);
+  assert.equal(turnover.remainingWager,6000);
+  assert.equal(turnover.progressPercent,40);
+
+  const room2=await rooms.createRoom(customer.id,6000);
+  const ready2=await rooms.joinRoom(opponent.id,room2.room_code);
+  await rooms.playRoomMove(customer.id,room2.room_code,'paper',ready2.round_no);
+  await rooms.playRoomMove(opponent.id,room2.room_code,'rock',ready2.round_no);
+  turnover=(await wallet.getWalletInfo(customer.id)).withdrawalTurnover;
+  assert.equal(turnover.completedWager,10000);
+  assert.equal(turnover.isEligible,true);
+  const withdrawal=await wallet.createWithdrawRequest(customer.id,'bank',10000);
+  assert.equal(withdrawal.transaction.status,'pending');
+});
+
+test('wager before a deposit is not credited toward a future withdrawal requirement',async()=> {
+  const customer=await user(20000), opponent=await user(20000);
+  const room=await rooms.createRoom(customer.id,10000);
+  const ready=await rooms.joinRoom(opponent.id,room.room_code);
+  await rooms.playRoomMove(customer.id,room.room_code,'rock',ready.round_no);
+  await rooms.playRoomMove(opponent.id,room.room_code,'scissors',ready.round_no);
+  assert.equal((await wallet.getWalletInfo(customer.id)).withdrawalTurnover.completedWager,0);
+  const deposit=await wallet.createDepositRequest(customer.id,'bank',10000,'future turnover');
+  await admin.approveTransaction(deposit.id);
+  const turnover=(await wallet.getWalletInfo(customer.id)).withdrawalTurnover;
+  assert.equal(turnover.completedWager,0);
+  assert.equal(turnover.remainingWager,10000);
 });
 
 test('house profit includes fee once, completed rounds are immutable and no fee on draws',async()=> {

@@ -60,6 +60,7 @@ export interface Match {
 export interface Room {
   round_no: number;
   round_deadline?: string | Date | null;
+  server_time?: string | Date;
   escrow_funded?: boolean;
   host_rematch?: boolean;
   guest_rematch?: boolean;
@@ -123,6 +124,14 @@ export interface AdminPaymentInfo {
   usdtRate: number; // e.g. 1 USDT = 25000 Xu
   bankRate: number; // e.g. 1000 VNĐ = 1000 Xu
   qrCodeUrl?: string;
+}
+
+export interface WithdrawalTurnover {
+  requiredWager: number;
+  completedWager: number;
+  remainingWager: number;
+  progressPercent: number;
+  isEligible: boolean;
 }
 
 export interface ReferralTierStat {

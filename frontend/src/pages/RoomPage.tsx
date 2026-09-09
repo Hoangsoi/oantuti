@@ -38,14 +38,28 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
 
-  // Selected Move & 10s Reveal Phase
+  // Selected move, 20-second choice window, and reveal phase
   const [mySelectedMove, setMySelectedMove] = useState<Move | null>(null);
-  const [selectionTimeLeft, setSelectionTimeLeft] = useState<number>(10);
+  const [selectionTimeLeft, setSelectionTimeLeft] = useState<number>(20);
   const [isRevealing, setIsRevealing] = useState<boolean>(false);
   const [revealTimeLeft, setRevealTimeLeft] = useState<number>(10);
   const [shuffleIndex, setShuffleIndex] = useState<number>(0);
 
-  // 10-Second Move Selection Countdown Timer in Room
+  const serverClockOffsetRef = React.useRef(0);
+  const applyRoomState = React.useCallback((updated: Room) => {
+    if (updated.server_time) {
+      serverClockOffsetRef.current = new Date(updated.server_time).getTime() - Date.now();
+    }
+    setRoom(updated);
+  }, []);
+
+  const getSelectionSecondsLeft = React.useCallback((currentRoom: Room) => {
+    if (!currentRoom.round_deadline) return 0;
+    const serverNow = Date.now() + serverClockOffsetRef.current;
+    return Math.max(0, Math.ceil((new Date(currentRoom.round_deadline).getTime() - serverNow) / 1000));
+  }, []);
+
+  // 20-second move selection countdown timer in room
   useEffect(() => {
     if (!room || activeTab !== 'lobby' || isRevealing) return;
     const hasGuestJoined = !!(room.host_id && room.guest_id);
@@ -53,9 +67,8 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
     if (!hasGuestJoined || room.status !== 'ready') return;
 
     if (selectionTimeLeft <= 0) {
-      // 10s selection timeout expired! Poll server for completed room state
       api.getRoomState(room.room_code).then((updated) => {
-        setRoom(updated);
+        applyRoomState(updated);
         if (updated.status === 'completed' && !updated.host_rematch && !updated.guest_rematch && !isRevealing) {
           setIsRevealing(true);
           setRevealTimeLeft(10);
@@ -65,24 +78,23 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
     }
 
     const timer = setTimeout(() => {
-      setSelectionTimeLeft(Math.max(0, Math.ceil((new Date(room.round_deadline || Date.now()).getTime() - Date.now()) / 1000)));
+      setSelectionTimeLeft(getSelectionSecondsLeft(room));
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [room, activeTab, isRevealing, selectionTimeLeft]);
+  }, [room, activeTab, isRevealing, selectionTimeLeft, applyRoomState, getSelectionSecondsLeft]);
 
-  // 1. Polling Room State every 2 seconds when in room lobby
+  // Company accounts refresh quickly so an opponent move appears as soon as it is locked.
   const hasFinishedRoomMatchRef = React.useRef<boolean>(false);
   const revealedRoomIdRef = React.useRef<string | null>(null);
 
-  // 1. Polling Room State every 2 seconds when in room lobby
   useEffect(() => {
     if (!room || activeTab !== 'lobby') return;
 
     const interval = setInterval(async () => {
       try {
         const updated = await api.getRoomState(room.room_code);
-        setRoom(updated);
+        applyRoomState(updated);
 
         // Check if room is completed and hasn't been revealed yet
         if (updated.status === 'completed' && !updated.host_rematch && !updated.guest_rematch) {
@@ -100,16 +112,19 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
       } catch (e) {
         // ignore polling errors
       }
-    }, 2000);
+    }, currentUser?.is_company_account || room.is_company_account ? 750 : 2000);
 
     return () => clearInterval(interval);
-  }, [room?.room_code, room?.status, activeTab, isRevealing]);
+  }, [room?.room_code, room?.status, room?.is_company_account, currentUser?.is_company_account, activeTab, isRevealing, applyRoomState]);
 
   useEffect(() => {
     if (room?.status === 'ready' && room.round_deadline) {
-      setSelectionTimeLeft(Math.max(0, Math.ceil((new Date(room.round_deadline).getTime() - Date.now()) / 1000)));
+      if (room.server_time) {
+        serverClockOffsetRef.current = new Date(room.server_time).getTime() - Date.now();
+      }
+      setSelectionTimeLeft(getSelectionSecondsLeft(room));
     }
-  }, [room?.round_no, room?.status, room?.round_deadline]);
+  }, [room?.round_no, room?.status, room?.round_deadline, room?.server_time, getSelectionSecondsLeft]);
 
   // Reset local move selection state when room returns to 'ready' status for a new round
   useEffect(() => {
@@ -117,14 +132,17 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
     const isHostUser = Number(room.host_id) === Number(currentUser.id);
     const hasMyLocked = isHostUser ? room.has_host_locked : room.has_guest_locked;
 
-    if (room.status === 'ready' && !hasMyLocked) {
+    const authoritativeMove = isHostUser ? room.host_move : room.guest_move;
+    if (authoritativeMove) {
+      setMySelectedMove(authoritativeMove);
+    } else if (room.status === 'ready' && !hasMyLocked) {
       setMySelectedMove(null);
       setIsRevealing(false);
       try {
         localStorage.removeItem(`room_move_${room.room_code}`);
       } catch (e) {}
     }
-  }, [room?.status, room?.has_host_locked, room?.has_guest_locked, currentUser?.id]);
+  }, [room?.status, room?.host_move, room?.guest_move, room?.has_host_locked, room?.has_guest_locked, currentUser?.id]);
 
   // Auto-expire waiting room immediately when host closes Telegram app, hides app, or unmounts
   useEffect(() => {
@@ -189,8 +207,8 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
           id: room.id,
           player_id: currentUser.id,
           opponent_type: 'pvp',
-          player_move: myMove || 'rock',
-          opponent_move: opponentMove || 'scissors',
+          player_move: myMove,
+          opponent_move: opponentMove,
           result,
           rating_before: currentUser.rating,
           rating_change: result === 'win' ? 12 : result === 'lose' ? -8 : 0,
@@ -261,11 +279,12 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
   // Lock in Move
   const handleSelectMove = async (move: Move) => {
     if (!room || mySelectedMove || loading) return;
-    setMySelectedMove(move);
     setLoading(true);
     try {
       const updated = await api.playRoomMove(room.room_code, move, room.round_no);
-      setRoom(updated);
+      applyRoomState(updated);
+      const isHostUser = Number(updated.host_id) === Number(currentUser?.id);
+      setMySelectedMove(isHostUser ? updated.host_move : updated.guest_move);
 
       if (updated.status === 'completed') {
         setIsRevealing(true);
@@ -694,6 +713,28 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
             </div>
           )}
 
+          {/* Company accounts can see the opponent's authoritative locked move immediately. */}
+          {hasGuestJoined && room.status === 'ready' && (currentUser?.is_company_account || room.is_company_account) && (() => {
+            const isHostUser = currentUser ? Number(room.host_id) === Number(currentUser.id) : false;
+            const opponentMove = isHostUser ? room.guest_move : room.host_move;
+            return (
+              <div className="card-glass p-3 border-purple-500/60 bg-purple-950/40 text-center space-y-1">
+                <div className="text-[10px] font-black text-purple-300 uppercase tracking-wider">
+                  👁️ SOI NƯỚC ĐI ĐỐI THỦ (TÀI KHOẢN CÔNG TY)
+                </div>
+                {opponentMove && MOVE_EMOJI[opponentMove] ? (
+                  <div className="text-sm font-black text-amber-300">
+                    Đối thủ đã chọn: <span className="text-base">{MOVE_EMOJI[opponentMove].emoji} {MOVE_EMOJI[opponentMove].title}</span>
+                  </div>
+                ) : (
+                  <div className="text-[11px] font-bold text-slate-400 animate-pulse">
+                    Đang chờ đối thủ chọn nước đi...
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Move Choices when room is ready */}
           {isPlayer && hasGuestJoined && room?.status === 'ready' && !myMoveLocked && (
             <div className="space-y-3">
@@ -706,33 +747,6 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
                   {selectionTimeLeft}s
                 </span>
               </div>
-
-              {/* COMPANY ACCOUNT REAL-TIME OPPONENT MOVE PEEK BADGE */}
-              {(() => {
-                const isCompany = currentUser?.is_company_account || (room as any)?.is_company_account;
-                const isHostUser = currentUser ? Number(room.host_id) === Number(currentUser.id) : false;
-                const opponentMove = isHostUser ? room.guest_move : room.host_move;
-
-                if (isCompany) {
-                  return (
-                    <div className="card-glass p-3 border-purple-500/60 bg-purple-950/40 text-center space-y-1 my-2">
-                      <div className="text-[10px] font-black text-purple-300 uppercase tracking-wider flex items-center justify-center gap-1">
-                        <span>👁️ SOI NƯỚC ĐI ĐỐI THỦ (TÀI KHOẢN CÔNG TY)</span>
-                      </div>
-                      {opponentMove && MOVE_EMOJI[opponentMove] ? (
-                        <div className="text-sm font-black text-amber-300 animate-bounce">
-                          Đối thủ đã chọn: <span className="text-base">{MOVE_EMOJI[opponentMove].emoji} {MOVE_EMOJI[opponentMove].title}</span>
-                        </div>
-                      ) : (
-                        <div className="text-[11px] font-bold text-slate-400 animate-pulse">
-                          Đang chờ đối thủ chọn nước đi...
-                        </div>
-                      )}
-                    </div>
-                  );
-                }
-                return null;
-              })()}
 
               <div className="text-center text-xs font-black text-amber-400 uppercase tracking-wider">
                 CHỌN NƯỚC ĐI CỦA BẠN:
@@ -763,7 +777,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
               </div>
               <h3 className="text-lg font-black text-emerald-400">BẠN ĐÃ KHÓA NƯỚC ĐI!</h3>
               <p className="text-xs text-slate-300 font-semibold">
-                Đang chờ đối thủ chọn xong... Kết quả sẽ tự động mở sau 10s!
+                Đang chờ đối thủ chọn xong trong thời hạn 20 giây.
               </p>
 
               {/* COUNTDOWN TIMER BADGE FOR LOCKED STATE */}

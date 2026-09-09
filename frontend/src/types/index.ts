@@ -50,6 +50,7 @@ export interface Match {
 export interface Room {
   round_no: number;
   round_deadline?: string | Date | null;
+  server_time?: string | Date;
   escrow_funded?: boolean;
   host_rematch?: boolean;
   guest_rematch?: boolean;
@@ -78,6 +79,7 @@ export interface Room {
   has_password?: boolean;
   password?: string | null;
   spectator_count?: number;
+  is_company_account?: boolean;
 }
 
 export interface BankAccount {
@@ -127,6 +129,13 @@ export interface WalletData {
   bankAccount: BankAccount | null;
   transactions: Transaction[];
   adminPayment: AdminPaymentInfo;
+  withdrawalTurnover: {
+    requiredWager: number;
+    completedWager: number;
+    remainingWager: number;
+    progressPercent: number;
+    isEligible: boolean;
+  };
 }
 
 export interface LeaderboardEntry {

@@ -27,8 +27,8 @@ export const GamePage: React.FC<GamePageProps> = ({
   isLoading,
   errorMessage,
 }) => {
-  // Phase 1: Selecting (10s timer)
-  const [timeLeft, setTimeLeft] = useState<number>(10);
+  // Phase 1: Selecting (20s timer)
+  const [timeLeft, setTimeLeft] = useState<number>(20);
   const [selectedMove, setSelectedMove] = useState<Move | null>(null);
 
   // Phase 2: Revealing (10s countdown)
@@ -39,12 +39,12 @@ export const GamePage: React.FC<GamePageProps> = ({
 
   const hasFinishedRef = React.useRef<boolean>(false);
 
-  // 1. 10-Second Selection Timer
+  // 1. 20-second selection timer
   useEffect(() => {
     if (selectedMove || isRevealing || isLoading) return;
 
     if (timeLeft <= 0) {
-      // User failed to select move in 10s -> Declare Timeout Loss
+      // User failed to select within 20 seconds -> declare a timeout loss
       const timeoutLossMatch: Match = {
         id: Date.now(),
         player_id: 0,
@@ -149,7 +149,7 @@ export const GamePage: React.FC<GamePageProps> = ({
           </div>
         )}
 
-        {/* Timer Badge (5s selection or 10s reveal) */}
+        {/* Timer badge (20s selection or 10s reveal) */}
         <div className="flex items-center gap-2 bg-slate-800/90 border border-amber-500/40 px-4 py-2 rounded-2xl shadow-lg">
           <Timer className={`w-5 h-5 ${isRevealing ? 'text-amber-400 animate-spin' : timeLeft <= 2 ? 'text-red-500 animate-ping' : 'text-amber-400'}`} />
           <span className="text-[10px] font-bold text-slate-400 uppercase">
@@ -161,7 +161,7 @@ export const GamePage: React.FC<GamePageProps> = ({
         </div>
       </div>
 
-      {/* PHASE 1: SELECTING MOVE (5s) */}
+      {/* PHASE 1: SELECTING MOVE (20s) */}
       {!isRevealing ? (
         <>
           <div className="my-auto text-center py-4">

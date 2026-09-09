@@ -1,12 +1,35 @@
 import { query, pool } from '../database';
 import { readSettings } from './settings.service';
 import { depositCoins, USDT_RATE } from '../utils/money';
-import { BankAccount, Transaction, AdminPaymentInfo, User } from '../types';
+import { BankAccount, Transaction, AdminPaymentInfo, User, WithdrawalTurnover } from '../types';
 import { sendTelegramAdminNotification } from '../utils/telegram';
 
 export async function getAdminPaymentInfo(): Promise<AdminPaymentInfo> {
   const settings = await readSettings();
   return { ...settings, usdtNetwork: 'TRC20', usdtRate: USDT_RATE, bankRate: 1 };
+}
+
+async function getWithdrawalTurnover(
+  userId: number,
+  db: { query: (text: string, params?: any[]) => Promise<any> } = { query }
+): Promise<WithdrawalTurnover> {
+  const res = await db.query(
+    `INSERT INTO user_withdrawal_turnover (user_id)
+     VALUES ($1)
+     ON CONFLICT (user_id) DO UPDATE SET user_id = EXCLUDED.user_id
+     RETURNING required_wager, completed_wager`,
+    [userId]
+  );
+  const requiredWager = Number(res.rows[0].required_wager || 0);
+  const completedWager = Math.min(requiredWager, Number(res.rows[0].completed_wager || 0));
+  const remainingWager = Math.max(0, requiredWager - completedWager);
+  return {
+    requiredWager,
+    completedWager,
+    remainingWager,
+    progressPercent: requiredWager === 0 ? 100 : Math.min(100, (completedWager / requiredWager) * 100),
+    isEligible: remainingWager === 0,
+  };
 }
 
 export async function getWalletInfo(userId: number) {
@@ -17,6 +40,7 @@ export async function getWalletInfo(userId: number) {
     bankAccount: bankRes.rows[0] || null,
     transactions: txRes.rows,
     adminPayment: await getAdminPaymentInfo(),
+    withdrawalTurnover: await getWithdrawalTurnover(userId),
   };
 }
 
@@ -113,6 +137,14 @@ export async function createWithdrawRequest(
     await client.query("SELECT set_config('app.coin_reason', 'withdrawal_hold', true)");
     if (user.coins < coinsAmount) {
       throw new Error(`Số dư Xu Game của bạn không đủ (${coinsAmount.toLocaleString()} Xu)`);
+    }
+
+    const turnover = await getWithdrawalTurnover(userId, client);
+    if (!turnover.isEligible) {
+      throw new Error(
+        `Bạn cần cược thêm ${turnover.remainingWager.toLocaleString('vi-VN')} Xu để đủ điều kiện rút ` +
+        `(${turnover.completedWager.toLocaleString('vi-VN')}/${turnover.requiredWager.toLocaleString('vi-VN')} Xu)`
+      );
     }
 
     const payoutAccount = (await client.query<BankAccount>('SELECT * FROM bank_accounts WHERE user_id = $1', [userId])).rows[0];

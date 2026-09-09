@@ -190,6 +190,15 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
       return;
     }
 
+    if (walletData && !walletData.withdrawalTurnover.isEligible) {
+      const turnover = walletData.withdrawalTurnover;
+      setError(
+        `Bạn cần cược thêm ${turnover.remainingWager.toLocaleString('vi-VN')} Xu để đủ điều kiện rút ` +
+        `(${turnover.completedWager.toLocaleString('vi-VN')}/${turnover.requiredWager.toLocaleString('vi-VN')} Xu)`
+      );
+      return;
+    }
+
     if (withdrawMethod === 'usdt') {
       if (!walletData?.bankAccount?.usdt_address) {
         setError('Vui lòng liên kết Địa chỉ ví USDT (TRC20) tại Tab "Tài Khoản" trước khi tạo yêu cầu rút USDT!');
@@ -575,6 +584,48 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
                 TẠO YÊU CẦU RÚT TIỀN (TỐI THIỂU 10,000 XU)
               </h3>
 
+              {walletData && (() => {
+                const turnover = walletData.withdrawalTurnover;
+                return (
+                  <div className={`rounded-2xl border p-4 space-y-3 ${
+                    turnover.isEligible
+                      ? 'bg-emerald-500/10 border-emerald-500/30'
+                      : 'bg-amber-500/10 border-amber-500/30'
+                  }`}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-xs font-black text-white">TIẾN ĐỘ DOANH SỐ CƯỢC</div>
+                        <div className="text-[10px] text-slate-400 mt-1">Chỉ tính ván thắng hoặc thua, không tính ván hòa</div>
+                      </div>
+                      <span className={`text-xs font-black ${turnover.isEligible ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {turnover.isEligible ? 'ĐỦ ĐIỀU KIỆN ✓' : 'CHƯA ĐỦ'}
+                      </span>
+                    </div>
+
+                    <div className="h-3 rounded-full bg-slate-950 overflow-hidden border border-slate-800">
+                      <div
+                        role="progressbar"
+                        aria-label="Tiến độ doanh số cược"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={Math.round(turnover.progressPercent)}
+                        className={`h-full rounded-full transition-all ${turnover.isEligible ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                        style={{ width: `${turnover.progressPercent}%` }}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className="text-slate-300">
+                        {turnover.completedWager.toLocaleString('vi-VN')}/{turnover.requiredWager.toLocaleString('vi-VN')} Xu
+                      </span>
+                      {!turnover.isEligible && (
+                        <span className="text-amber-300">Cần thêm {turnover.remainingWager.toLocaleString('vi-VN')} Xu</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setWithdrawMethod('bank')}
@@ -704,10 +755,10 @@ export const WalletPage: React.FC<WalletPageProps> = ({ currentUser, onUserUpdat
 
               <button
                 onClick={handleConfirmWithdraw}
-                disabled={submitting}
+                disabled={submitting || !walletData?.withdrawalTurnover.isEligible}
                 className="w-full py-4 btn-game-primary text-base"
               >
-                <span>GỬI YÊU CẦU RÚT TIỀN 📤</span>
+                <span>{walletData?.withdrawalTurnover.isEligible ? 'GỬI YÊU CẦU RÚT TIỀN 📤' : 'CHƯA ĐỦ DOANH SỐ CƯỢC'}</span>
               </button>
             </div>
           )}

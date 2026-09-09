@@ -118,6 +118,14 @@ export async function approveTransaction(txId: number) {
         'UPDATE users SET coins = coins + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
         [tx.coins, tx.user_id]
       );
+      await client.query(
+        `INSERT INTO user_withdrawal_turnover (user_id, required_wager, completed_wager)
+         VALUES ($1, $2, 0)
+         ON CONFLICT (user_id) DO UPDATE
+         SET required_wager = user_withdrawal_turnover.required_wager + EXCLUDED.required_wager,
+             updated_at = CURRENT_TIMESTAMP`,
+        [tx.user_id, tx.coins]
+      );
     }
 
     // Update transaction status to approved
@@ -418,6 +426,7 @@ export async function clearAllSystemData(defaultCoins: number = 0): Promise<{ su
     await client.query('DELETE FROM referral_commissions');
     await client.query('DELETE FROM daily_rewards');
     await client.query('DELETE FROM coin_ledger');
+    await client.query('DELETE FROM user_withdrawal_turnover');
 
     // 2. Reset user statistics, wager amount, VIP levels and balances to defaultCoins (keep bots funded)
     await client.query(
@@ -440,6 +449,10 @@ export async function clearAllSystemData(defaultCoins: number = 0): Promise<{ su
     await client.query(
       `INSERT INTO coin_ledger(user_id, delta, balance_after, reason)
        SELECT id, coins, coins, 'system_reset_baseline' FROM users`
+    );
+    await client.query(
+      `INSERT INTO user_withdrawal_turnover(user_id, required_wager, completed_wager)
+       SELECT id, 0, 0 FROM users`
     );
 
     // Re-enable triggers

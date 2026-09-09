@@ -14,7 +14,7 @@ vi.mock('../src/services/sound', () => ({playTickSound: vi.fn(),playSelectSound:
 const user = {id:1,first_name:'Host',coins:40000,rating:1000} as any;
 const base = {id:1,room_code:'123456',host_id:1,guest_id:2,round_no:3,bet_amount:10000,
   status:'ready',host_move:null,guest_move:null,has_host_locked:false,has_guest_locked:false,
-  round_deadline:new Date(Date.now()+60000).toISOString()} as any;
+  round_deadline:new Date(Date.now()+20000).toISOString(),server_time:new Date().toISOString()} as any;
 function show(room = base) {
   return render(<RoomPage currentUser={user} initialRoom={room} onFinishRoomMatch={vi.fn()} onBackHome={vi.fn()} onOpenTopup={vi.fn()} />);
 }
@@ -26,6 +26,19 @@ describe('room lifecycle UI',()=> {
     show();
     fireEvent.click(screen.getByRole('button',{name:/BÚA/i}));
     await waitFor(()=>expect(api.playRoomMove).toHaveBeenCalledWith('123456','rock',3));
+  });
+  it('uses the authoritative move returned by the server after a late selection',async()=> {
+    vi.mocked(api.playRoomMove).mockResolvedValue({
+      ...base,status:'completed',host_move:'scissors',guest_move:'rock',has_host_locked:true,has_guest_locked:true,winner_id:2,
+    });
+    show();
+    fireEvent.click(screen.getByRole('button',{name:/BAO/i}));
+    await waitFor(()=>expect(screen.getByText('✌️')).toBeTruthy());
+    expect(screen.queryByText('✋')).toBeNull();
+  });
+  it('keeps the opponent move visible after a company account has locked its move',()=> {
+    show({...base,host_move:'paper',guest_move:'rock',has_host_locked:true,has_guest_locked:true,is_company_account:true});
+    expect(screen.getByText(/Đối thủ đã chọn:/).textContent).toContain('BÚA');
   });
   it('shows a pending rematch and hides move buttons until both consent',()=> {
     show({...base,status:'completed',host_rematch:true,guest_rematch:false});

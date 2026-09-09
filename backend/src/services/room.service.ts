@@ -150,7 +150,7 @@ async function fundRound(client: import('pg').PoolClient, room: Room) {
     VALUES ($1,$2,$3,$4,$5,$6,$7)`, [room.id, nextRound, room.host_id, room.guest_id, Number(host.telegram_id) < 0 || !!host.is_company_account, Number(guest.telegram_id) < 0 || !!guest.is_company_account, room.bet_amount]);
   await client.query(`UPDATE rooms SET status = 'ready', round_no = $2, escrow_funded = true,
     host_move = NULL, guest_move = NULL, winner_id = NULL, result = NULL, fee_amount = 0,
-    host_rematch = false, guest_rematch = false, round_deadline = CURRENT_TIMESTAMP + INTERVAL '10 seconds',
+    host_rematch = false, guest_rematch = false, round_deadline = CURRENT_TIMESTAMP + INTERVAL '20 seconds',
     updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [room.id, nextRound]);
 }
 
@@ -241,7 +241,8 @@ export async function spectateRoom(userId: number, roomCode: string): Promise<Ro
 }
 
 export async function getRoomState(userId: number, roomCode: string): Promise<Room> {
-  const res = await query(`SELECT r.*, (r.password IS NOT NULL AND r.password <> '') AS has_password,
+  const res = await query(`SELECT r.*, CURRENT_TIMESTAMP AS server_time,
+    (r.password IS NOT NULL AND r.password <> '') AS has_password,
     h.first_name AS host_name, h.photo_url AS host_avatar, g.first_name AS guest_name, g.photo_url AS guest_avatar
     FROM rooms r JOIN users h ON h.id = r.host_id LEFT JOIN users g ON g.id = r.guest_id WHERE room_code = $1`, [roomCode.trim()]);
   const room = res.rows[0];
@@ -303,6 +304,17 @@ async function settleRound(client: import('pg').PoolClient, room: Room, hostMove
     await client.query(`INSERT INTO matches(player_id,opponent_type,player_move,opponent_move,result,rating_before,rating_change,rating_after)
       VALUES ($1,'pvp',$2,$3,$4,$5,$6,$7)`, [player.id,isHost?hostMove:guestMove,isHost?guestMove:hostMove,result,player.rating,ratingChange,Math.max(0,player.rating+ratingChange)]);
     if (outcome !== 'draw' && room.bet_amount > 0 && Number(player.telegram_id) > 0) {
+      await client.query(
+        `INSERT INTO user_withdrawal_turnover (user_id, required_wager, completed_wager)
+         VALUES ($1, 0, 0)
+         ON CONFLICT (user_id) DO UPDATE
+         SET completed_wager = LEAST(
+               user_withdrawal_turnover.required_wager,
+               user_withdrawal_turnover.completed_wager + $2
+             ),
+             updated_at = CURRENT_TIMESTAMP`,
+        [player.id, room.bet_amount]
+      );
       await payCommissions(client, player.id, room.bet_amount, room);
       await recordWagerAndCheckVipUpgrade(client, player.id, room.bet_amount);
     }

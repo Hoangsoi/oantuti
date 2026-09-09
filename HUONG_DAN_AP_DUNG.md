@@ -11,9 +11,10 @@
 - Mật khẩu admin mặc định bị vô hiệu hóa. Khi không cấu hình ADMIN_USERNAME/ADMIN_PASSWORD, dùng tài khoản Telegram admin. Tài khoản bị khóa không dùng được token cũ.
 - Trước mỗi ván, hệ thống trừ tạm mức cược của cả hai người khỏi số dư có thể rút. Người thắng nhận lại tổng tiền giữ trừ phí; hòa hoàn tiền hai bên, không phí, không hoa hồng và không tính doanh số VIP.
 - Chơi lại yêu cầu hai người đồng ý; bot tự đồng ý. Không thể reset/rời ván đang chạy để xóa nước đi. Khi người dùng đóng ứng dụng, máy chủ vẫn xử lý hết giờ; tiền được quyết toán theo quy tắc timeout hiện có.
-- Mỗi ván có số thứ tự, thời hạn và bản ghi quyết toán riêng. Gửi lặp không trả tiền lần hai. Giữ khóa trong DB cho các thao tác phòng nhằm tránh ghi đè khi nhiều yêu cầu đến đồng thời.
+- Mỗi ván có số thứ tự, thời hạn chọn 20 giây và bản ghi quyết toán riêng. Một bên không chọn đúng hạn sẽ thua trước nước đã khóa của đối thủ. Tài khoản công ty nhận nước đối thủ với chu kỳ cập nhật dưới một giây; giao diện chỉ hiển thị nước backend đã xác nhận. Gửi lặp không trả tiền lần hai. Giữ khóa trong DB cho các thao tác phòng nhằm tránh ghi đè khi nhiều yêu cầu đến đồng thời.
 - Sổ biến động Xu và ván đã quyết toán không cho sửa/xóa. Chức năng xóa tài khoản chuyển thành vô hiệu hóa, giữ số dư/lịch sử. Nút xóa toàn bộ lịch sử đã gỡ.
 - Cấu hình nhận tiền đọc từ DB trước biến môi trường; không dùng tài khoản nhận tiền mẫu. Mức nạp USDT là 0,4–4.000 USDT (10.000–100.000.000 Xu). Đơn rút mới lưu nơi nhận tiền tại thời điểm tạo.
+- Mỗi khoản nạp được duyệt tăng doanh số cược bắt buộc đúng bằng số Xu nạp. Chỉ ván có kết quả thắng hoặc thua làm tăng tiến độ; hòa không tính. Cược trước khoản nạp không được dùng trước cho khoản nạp mới. Backend chặn lệnh rút khi chưa đủ và ví hiển thị tiến độ.
 - Sảnh không khởi tạo 40 bot trong từng request. Tác vụ nền bổ sung phòng mỗi 15 giây và kiểm tra hết giờ mỗi giây. Đọc hồ sơ không đếm lại toàn bộ lịch sử trận.
 
 ## Những việc cần thực hiện ở môi trường triển khai
@@ -42,4 +43,4 @@
 
 Các trường hợp gồm: HMAC và dữ liệu giả, thiếu secret production, CORS, tài khoản khóa, route topup bị gỡ, giữ tiền/rút tiền, request lặp, cạnh tranh vào phòng, chơi lại/hòa/hết giờ, cấu hình bền vững, quyền công ty và bot giữ nguyên, địa chỉ rút cố định, duyệt/từ chối một lần, đối soát sổ Xu và lợi nhuận nhà.
 
-Kết quả trên máy ngày 07/09/2026: 14 kiểm thử backend và 4 kiểm thử giao diện đạt; lint và build đạt. Npm audit của backend/frontend không còn cảnh báo sau khi cập nhật thư viện. Kiểm tra này không chứng minh toàn bộ hệ thống không có lỗ hổng và không thay thế kiểm tra môi trường triển khai.
+Kết quả trên máy ngày 09/09/2026: 17 kiểm thử backend và 8 kiểm thử giao diện đạt; lint và build đạt. Npm audit của backend/frontend không còn cảnh báo sau khi cập nhật thư viện. Kiểm tra này không chứng minh toàn bộ hệ thống không có lỗ hổng và không thay thế kiểm tra môi trường triển khai.
