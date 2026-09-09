@@ -119,6 +119,10 @@ export const initDatabase = async () => {
       await client.query(fs.readFileSync(path.join(__dirname, 'withdrawal-turnover.sql'), 'utf8'));
       await client.query('INSERT INTO schema_migrations(version) VALUES (3)');
     }
+    if (!versions.has(4)) {
+      await client.query(fs.readFileSync(path.join(__dirname, 'company-grace.sql'), 'utf8'));
+      await client.query('INSERT INTO schema_migrations(version) VALUES (4)');
+    }
     await client.query('COMMIT');
     console.log('✅ Cơ sở dữ liệu Neon PostgreSQL đã được khởi tạo schema và migrations thành công.');
   } catch (error) {
@@ -131,6 +135,6 @@ export const initDatabase = async () => {
 };
 
 export async function assertDatabaseReady() {
-  const result = await query('SELECT version FROM schema_migrations WHERE version = 3');
+  const result = await query('SELECT version FROM schema_migrations WHERE version = 4');
   if (!result.rows.length) throw new Error('Run npm --prefix backend run migrate before starting');
 }

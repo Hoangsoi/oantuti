@@ -61,6 +61,7 @@ export interface Room {
   round_no: number;
   round_deadline?: string | Date | null;
   server_time?: string | Date;
+  company_grace_active?: boolean;
   escrow_funded?: boolean;
   host_rematch?: boolean;
   guest_rematch?: boolean;

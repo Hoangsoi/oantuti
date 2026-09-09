@@ -40,6 +40,14 @@ describe('room lifecycle UI',()=> {
     show({...base,host_move:'paper',guest_move:'rock',has_host_locked:true,has_guest_locked:true,is_company_account:true});
     expect(screen.getByText(/Đối thủ đã chọn:/).textContent).toContain('BÚA');
   });
+  it('lets a company account change its move during the hidden result countdown',async()=> {
+    const graceRoom={...base,host_move:'rock',guest_move:'paper',has_host_locked:true,has_guest_locked:true,
+      is_company_account:true,company_grace_active:true};
+    vi.mocked(api.playRoomMove).mockResolvedValue({...graceRoom,host_move:'scissors'});
+    show(graceRoom);
+    fireEvent.click(screen.getByRole('button',{name:/KÉO/i}));
+    await waitFor(()=>expect(api.playRoomMove).toHaveBeenCalledWith('123456','scissors',3));
+  });
   it('shows a pending rematch and hides move buttons until both consent',()=> {
     show({...base,status:'completed',host_rematch:true,guest_rematch:false});
     expect(screen.getByText(/Đang chờ cả hai/)).toBeTruthy();

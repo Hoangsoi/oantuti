@@ -148,6 +148,27 @@ test('a move submitted after the deadline returns the server-assigned losing mov
   assert.equal(completed.winner_id,g.id);
 });
 
+test('company account gets a hidden result grace period and can change its move',async()=> {
+  const {h,g,r}=await match(10000,50000,{company:true});
+  await db.query("UPDATE rooms SET round_deadline=CURRENT_TIMESTAMP+INTERVAL '1 second' WHERE id=$1",[r.id]);
+  const hiddenGrace=await rooms.playRoomMove(g.id,r.room_code,'rock',1);
+  assert.equal(hiddenGrace.company_grace_active,true);
+  assert.equal(hiddenGrace.has_host_locked,true);
+  assert.equal(hiddenGrace.host_move,null);
+  const companyView=await rooms.getRoomState(h.id,r.room_code);
+  assert.equal(companyView.guest_move,'rock');
+  await rooms.playRoomMove(h.id,r.room_code,'scissors',1);
+  const changed=await rooms.playRoomMove(h.id,r.room_code,'paper',1);
+  assert.equal(changed.status,'ready');
+  assert.equal(changed.host_move,'paper');
+  await db.query("UPDATE rooms SET round_deadline=CURRENT_TIMESTAMP-INTERVAL '1 second' WHERE id=$1",[r.id]);
+  await rooms.resolveRoomTimeout(r.room_code);
+  const completed=await rooms.getRoomState(h.id,r.room_code);
+  assert.equal(completed.status,'completed');
+  assert.equal(completed.host_move,'paper');
+  assert.equal(completed.winner_id,h.id);
+});
+
 test('settings survive process-env changes and item 7 company visibility/bot behavior remains',async()=> {
   await admin.updatePaymentConfig({bankName:'Test bank',accountNumber:'987654',accountHolder:'TEST',usdtAddress:'test-wallet',botWinRate:100});
   process.env.ADMIN_BANK_ACCOUNT='old-value';process.env.BOT_WIN_RATE='0';
@@ -250,6 +271,8 @@ test('house profit includes fee once, completed rounds are immutable and no fee 
   const {h,g,r}=await match(10000,50000,{company:true});
   await rooms.playRoomMove(h.id,r.room_code,'rock',1);
   await rooms.playRoomMove(g.id,r.room_code,'scissors',1);
+  await db.query("UPDATE rooms SET round_deadline=CURRENT_TIMESTAMP-INTERVAL '1 second' WHERE id=$1",[r.id]);
+  await rooms.resolveRoomTimeout(r.room_code);
   const after=await admin.getGameStats();
   assert.equal(after.netHouseProfit-before.netHouseProfit,10000);
   await assert.rejects(db.query('UPDATE room_rounds SET fee_amount=0 WHERE room_id=$1',[r.id]),/cannot be changed/);

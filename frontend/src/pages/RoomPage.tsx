@@ -105,6 +105,9 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
             setIsRevealing(true);
             setRevealTimeLeft(10);
           }
+        } else if (updated.company_grace_active && !(currentUser?.is_company_account || updated.is_company_account)) {
+          setIsRevealing(true);
+          setRevealTimeLeft(getSelectionSecondsLeft(updated));
         } else if (updated.status === 'ready' || updated.status === 'waiting') {
           revealedRoomIdRef.current = null;
           hasFinishedRoomMatchRef.current = false;
@@ -115,7 +118,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
     }, currentUser?.is_company_account || room.is_company_account ? 750 : 2000);
 
     return () => clearInterval(interval);
-  }, [room?.room_code, room?.status, room?.is_company_account, currentUser?.is_company_account, activeTab, isRevealing, applyRoomState]);
+  }, [room?.room_code, room?.status, room?.is_company_account, currentUser?.is_company_account, activeTab, isRevealing, applyRoomState, getSelectionSecondsLeft]);
 
   useEffect(() => {
     if (room?.status === 'ready' && room.round_deadline) {
@@ -278,7 +281,8 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
 
   // Lock in Move
   const handleSelectMove = async (move: Move) => {
-    if (!room || mySelectedMove || loading) return;
+    const canCompanyAdjust = !!room?.company_grace_active && !!(currentUser?.is_company_account || room?.is_company_account);
+    if (!room || (mySelectedMove && !canCompanyAdjust) || loading) return;
     setLoading(true);
     try {
       const updated = await api.playRoomMove(room.room_code, move, room.round_no);
@@ -289,6 +293,9 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
       if (updated.status === 'completed') {
         setIsRevealing(true);
         setRevealTimeLeft(10);
+      } else if (updated.company_grace_active && !(currentUser?.is_company_account || updated.is_company_account)) {
+        setIsRevealing(true);
+        setRevealTimeLeft(getSelectionSecondsLeft(updated));
       }
     } catch (err: any) {
       setMySelectedMove(null);
@@ -487,6 +494,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
   const hasGuestJoined = !!room.guest_id;
   const isPlayer = isHost || Number(room.guest_id) === Number(currentUser.id);
   const myMoveLocked = isHost ? room.has_host_locked : room.has_guest_locked;
+  const canCompanyAdjust = !!room.company_grace_active && !!(currentUser.is_company_account || room.is_company_account);
 
   const betAmt = room.bet_amount || 0;
   const houseFee = Math.floor(betAmt * 0.05);
@@ -736,7 +744,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
           })()}
 
           {/* Move Choices when room is ready */}
-          {isPlayer && hasGuestJoined && room?.status === 'ready' && !myMoveLocked && (
+          {isPlayer && hasGuestJoined && room?.status === 'ready' && (!myMoveLocked || canCompanyAdjust) && (
             <div className="space-y-3">
               <div className="card-glass p-3 flex items-center justify-between border-amber-500/40 bg-amber-500/10">
                 <div className="flex items-center gap-2 text-amber-300 text-xs font-bold">
@@ -749,28 +757,31 @@ export const RoomPage: React.FC<RoomPageProps> = ({ currentUser, initialRoom, on
               </div>
 
               <div className="text-center text-xs font-black text-amber-400 uppercase tracking-wider">
-                CHỌN NƯỚC ĐI CỦA BẠN:
+                {canCompanyAdjust ? 'CHỌN HOẶC ĐỔI NƯỚC TRƯỚC KHI MỞ KẾT QUẢ:' : 'CHỌN NƯỚC ĐI CỦA BẠN:'}
               </div>
               <MoveButton
                 move="rock"
                 onClick={handleSelectMove}
                 disabled={loading}
+                selected={mySelectedMove === 'rock'}
               />
               <MoveButton
                 move="paper"
                 onClick={handleSelectMove}
                 disabled={loading}
+                selected={mySelectedMove === 'paper'}
               />
               <MoveButton
                 move="scissors"
                 onClick={handleSelectMove}
                 disabled={loading}
+                selected={mySelectedMove === 'scissors'}
               />
             </div>
           )}
 
           {/* My Move Locked Indicator */}
-          {hasGuestJoined && room?.status === 'ready' && myMoveLocked && (
+          {hasGuestJoined && room?.status === 'ready' && myMoveLocked && !canCompanyAdjust && (
             <div className="card-glass p-6 text-center space-y-3 border-emerald-500/30 bg-emerald-500/5">
               <div className="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 text-2xl mx-auto">
                 ✓

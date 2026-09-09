@@ -150,7 +150,8 @@ async function fundRound(client: import('pg').PoolClient, room: Room) {
     VALUES ($1,$2,$3,$4,$5,$6,$7)`, [room.id, nextRound, room.host_id, room.guest_id, Number(host.telegram_id) < 0 || !!host.is_company_account, Number(guest.telegram_id) < 0 || !!guest.is_company_account, room.bet_amount]);
   await client.query(`UPDATE rooms SET status = 'ready', round_no = $2, escrow_funded = true,
     host_move = NULL, guest_move = NULL, winner_id = NULL, result = NULL, fee_amount = 0,
-    host_rematch = false, guest_rematch = false, round_deadline = CURRENT_TIMESTAMP + INTERVAL '20 seconds',
+    host_rematch = false, guest_rematch = false, company_grace_active = false,
+    round_deadline = CURRENT_TIMESTAMP + INTERVAL '20 seconds',
     updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [room.id, nextRound]);
 }
 
@@ -243,7 +244,8 @@ export async function spectateRoom(userId: number, roomCode: string): Promise<Ro
 export async function getRoomState(userId: number, roomCode: string): Promise<Room> {
   const res = await query(`SELECT r.*, CURRENT_TIMESTAMP AS server_time,
     (r.password IS NOT NULL AND r.password <> '') AS has_password,
-    h.first_name AS host_name, h.photo_url AS host_avatar, g.first_name AS guest_name, g.photo_url AS guest_avatar
+    h.first_name AS host_name, h.photo_url AS host_avatar, h.is_company_account AS host_is_company,
+    g.first_name AS guest_name, g.photo_url AS guest_avatar, g.is_company_account AS guest_is_company
     FROM rooms r JOIN users h ON h.id = r.host_id LEFT JOIN users g ON g.id = r.guest_id WHERE room_code = $1`, [roomCode.trim()]);
   const room = res.rows[0];
   if (!room) throw new Error('Không tìm thấy phòng đấu');
@@ -256,10 +258,13 @@ export async function getRoomState(userId: number, roomCode: string): Promise<Ro
   // Item 7: retain the existing company-account visibility policy.
   const requester = (await query<User>('SELECT is_company_account FROM users WHERE id = $1', [userId])).rows[0];
   const isCompanyAccount = !!requester?.is_company_account;
+  const hideMissingCompanyMove = !!room.company_grace_active && !isCompanyAccount;
   return { ...room, password: undefined,
     host_move: room.status === 'completed' || isHost || isCompanyAccount ? room.host_move : null,
     guest_move: room.status === 'completed' || isGuest || isCompanyAccount ? room.guest_move : null,
-    has_host_locked: !!room.host_move, has_guest_locked: !!room.guest_move, is_company_account: isCompanyAccount };
+    has_host_locked: !!room.host_move || (hideMissingCompanyMove && !!room.host_is_company),
+    has_guest_locked: !!room.guest_move || (hideMissingCompanyMove && !!room.guest_is_company),
+    is_company_account: isCompanyAccount };
 }
 
 async function payCommissions(client: import('pg').PoolClient, playerId: number, bet: number, room: Room) {
@@ -320,11 +325,44 @@ async function settleRound(client: import('pg').PoolClient, room: Room, hostMove
     }
   }
   await client.query(`UPDATE rooms SET host_move=$2,guest_move=$3,status='completed',winner_id=$4,result=$5,
-    fee_amount=$6,escrow_funded=false,round_deadline=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=$1`, [room.id,hostMove,guestMove,winner,outcome,fee]);
+    fee_amount=$6,escrow_funded=false,company_grace_active=false,round_deadline=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=$1`, [room.id,hostMove,guestMove,winner,outcome,fee]);
 }
 
 function losingMove(move: Move): Move { return move === 'rock' ? 'scissors' : move === 'paper' ? 'rock' : 'paper'; }
+function winningMove(move: Move): Move { return move === 'rock' ? 'paper' : move === 'paper' ? 'scissors' : 'rock'; }
+async function playerCompanySides(client: import('pg').PoolClient, room: Room) {
+  const players = await client.query<{id:number;is_company_account:boolean}>(
+    'SELECT id,is_company_account FROM users WHERE id = ANY($1::int[])',
+    [[room.host_id, room.guest_id]]
+  );
+  return {
+    hostCompany: !!players.rows.find(player => player.id === room.host_id)?.is_company_account,
+    guestCompany: !!players.rows.find(player => player.id === room.guest_id)?.is_company_account,
+  };
+}
+async function startCompanyGrace(client: import('pg').PoolClient, room: Room) {
+  await client.query(`UPDATE rooms SET company_grace_active=true,
+    round_deadline=CURRENT_TIMESTAMP + INTERVAL '10 seconds', updated_at=CURRENT_TIMESTAMP WHERE id=$1`, [room.id]);
+  room.company_grace_active = true;
+  room.round_deadline = new Date(Date.now() + 10000);
+}
 async function timeoutRound(client: import('pg').PoolClient, room: Room) {
+  const { hostCompany, guestCompany } = await playerCompanySides(client, room);
+  const companyMissing = (hostCompany && !room.host_move) || (guestCompany && !room.guest_move);
+  if (companyMissing && !room.company_grace_active) {
+    await startCompanyGrace(client, room);
+    return;
+  }
+  if (room.company_grace_active && companyMissing) {
+    if (hostCompany) {
+      const guest = room.guest_move || 'rock';
+      await settleRound(client, room, winningMove(guest), guest);
+    } else {
+      const host = room.host_move || 'rock';
+      await settleRound(client, room, host, winningMove(host));
+    }
+    return;
+  }
   const host = room.host_move || (room.guest_move ? losingMove(room.guest_move) : 'rock');
   const guest = room.guest_move || (room.host_move ? losingMove(room.host_move) : 'rock');
   await settleRound(client, room, host, guest);
@@ -345,12 +383,24 @@ export async function playRoomMove(userId: number, roomCode: string, move: Move,
     if (roundNo !== room.round_no) throw new Error('Ván đã thay đổi, vui lòng tải lại');
     if (room.status === 'completed') return;
     if (room.status !== 'ready' || !room.escrow_funded) throw new Error('Ván chưa sẵn sàng');
-    if (room.round_deadline && new Date(room.round_deadline).getTime() <= Date.now()) { await timeoutRound(client, room); return; }
     const blocked = (await client.query('SELECT is_blocked FROM users WHERE id = $1', [userId])).rows[0]?.is_blocked;
     if (blocked) throw new Error('Tài khoản đã bị khóa');
+    const { hostCompany, guestCompany } = await playerCompanySides(client, room);
     const isHost = room.host_id === userId;
+    const isCompany = isHost ? hostCompany : guestCompany;
+    const opponentIsCompany = isHost ? guestCompany : hostCompany;
+    if (room.round_deadline && new Date(room.round_deadline).getTime() <= Date.now()) {
+      if (isCompany && !room.company_grace_active && (isHost ? room.guest_move : room.host_move)) {
+        await startCompanyGrace(client, room);
+      } else {
+        const graceWasActive = !!room.company_grace_active;
+        await timeoutRound(client, room);
+        if (graceWasActive || !isCompany || !room.company_grace_active) return;
+      }
+    }
     const existing = isHost ? room.host_move : room.guest_move;
-    if (existing) { if (existing === move) return; throw new Error('Bạn đã khóa nước đi'); }
+    if (existing && !isCompany) { if (existing === move) return; throw new Error('Bạn đã khóa nước đi'); }
+    if (room.company_grace_active && !isCompany) return;
     let host = isHost ? move : room.host_move;
     const guest = isHost ? room.guest_move : move;
     // Item 7: preserve configured bot win rate and move selection behavior.
@@ -358,7 +408,17 @@ export async function playRoomMove(userId: number, roomCode: string, move: Move,
       const { botWinRate } = await readSettings(client);
       host = Math.floor(Math.random()*100) < botWinRate ? losingMove(losingMove(guest)) : losingMove(guest);
     }
-    if (host && guest) await settleRound(client, room, host, guest);
+    const millisecondsLeft = room.round_deadline ? new Date(room.round_deadline).getTime() - Date.now() : Infinity;
+    const shouldStartLateGrace = !isCompany && opponentIsCompany && !(isHost ? room.guest_move : room.host_move) && millisecondsLeft <= 2000;
+    const shouldStartCompanyReveal = !room.company_grace_active && (hostCompany || guestCompany) && !!host && !!guest;
+    if (shouldStartLateGrace || shouldStartCompanyReveal) {
+      await client.query('UPDATE rooms SET host_move=$2,guest_move=$3 WHERE id=$1', [room.id,host,guest]);
+      room.host_move = host;
+      room.guest_move = guest;
+      await startCompanyGrace(client, room);
+    } else if (room.company_grace_active) {
+      await client.query('UPDATE rooms SET host_move=$2,guest_move=$3,updated_at=CURRENT_TIMESTAMP WHERE id=$1', [room.id,host,guest]);
+    } else if (host && guest) await settleRound(client, room, host, guest);
     else await client.query('UPDATE rooms SET host_move=$2,guest_move=$3 WHERE id=$1', [room.id,host,guest]);
   });
   return getRoomState(userId, roomCode);

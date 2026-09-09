@@ -28,7 +28,7 @@ Frontend: http://localhost:5173. Backend: http://localhost:5000. Chạy thử ng
 
 - Cả hai bên được giữ đủ tiền trước mỗi ván; Xu giữ không thể rút. Thắng nhận tổng tiền giữ trừ phí 5% mức cược. Hòa hoàn tiền hai bên, không trả hoa hồng hoặc tính doanh số VIP.
 - Mỗi ván có 20 giây để chọn; nếu một bên không chọn thì backend tự gán nước thua trước nước đối thủ. Chơi lại cần hai bên đồng ý, bot tự đồng ý; không thể xóa nước đi bằng reset/rời phòng khi ván còn chạy.
-- Phòng bot giữ cơ chế tỷ lệ thắng có cấu hình (mặc định 70%). Tài khoản công ty thấy nước đối thủ ngay sau khi nước đó được khóa; giao diện luôn dùng nước đã được backend xác nhận để hiển thị và tính kết quả.
+- Phòng bot giữ cơ chế tỷ lệ thắng có cấu hình (mặc định 70%). Tài khoản công ty thấy nước đối thủ ngay sau khi nước đó được khóa, không bị xử thua do hết thời gian và được chọn hoặc đổi nước trong 10 giây chờ mở kết quả. Phía khách luôn thấy trạng thái đã khóa trong giai đoạn này. Giao diện dùng nước cuối cùng được backend xác nhận để tính kết quả.
 - Điểm xếp hạng thắng +12, thua -8, hòa 0; đây không phải công thức ELO theo chênh lệch đối thủ. Thưởng nhiệm vụ có thể tăng điểm.
 - Nạp ngân hàng từ 10.000 VNĐ; USDT từ 0,4 USDT, tỷ giá 25.000 Xu/USDT. Nạp/rút cần admin duyệt; phí rút USDT hiện tại 2 USDT.
 - Mỗi khoản nạp được duyệt tạo yêu cầu doanh số cược 1×. Chỉ ván thắng hoặc thua được tính; ván hòa không tính. Khách chỉ tạo lệnh rút khi tiến độ đạt 100% và có thể xem tiến độ trong tab Rút.
