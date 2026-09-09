@@ -18,10 +18,26 @@ function getAudioContext(): AudioContext | null {
       audioCtx = new AudioContextClass();
     }
   }
-  if (audioCtx && audioCtx.state === 'suspended') {
-    audioCtx.resume().catch(() => {});
-  }
   return audioCtx;
+}
+
+export async function unlockAudio(): Promise<boolean> {
+  if (!soundEnabled) return false;
+  const ctx = getAudioContext();
+  if (!ctx) return false;
+  try {
+    if (ctx.state !== 'running') await ctx.resume();
+    if (ctx.state !== 'running') return false;
+
+    // A silent, user-gesture-triggered source unlocks Web Audio on mobile Safari/Chrome.
+    const source = ctx.createBufferSource();
+    source.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+    source.connect(ctx.destination);
+    source.start(0);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function isSoundEnabled(): boolean {
@@ -32,6 +48,7 @@ export function startBgm() {
   if (!soundEnabled || bgmInterval) return;
   const ctx = getAudioContext();
   if (!ctx) return;
+  if (ctx.state !== 'running') return;
 
   bgmStep = 0;
   bgmInterval = setInterval(() => {

@@ -39,6 +39,7 @@ const wallet = require('../dist/services/wallet.service');
 const admin = require('../dist/services/admin.service');
 const auth = require('../dist/services/auth.service');
 const {authMiddleware} = require('../dist/middleware/auth.middleware');
+const {buildTelegramAdminNotification} = require('../dist/utils/telegram');
 const jwt = require('jsonwebtoken');
 let serial=100;
 async function user(coins=50000, extra={}) {
@@ -216,6 +217,10 @@ test('withdrawal destination is frozen, approval/rejection and deposits are one-
   const u=await user(50000);
   await wallet.linkBankAccount(u.id,'Bank A','11111','Test A','wallet-a');
   const request=await wallet.createWithdrawRequest(u.id,'bank',10000);
+  const notification=buildTelegramAdminNotification(request.transaction,u);
+  assert.match(notification,/Ngân hàng:\* Bank A/);
+  assert.match(notification,/Số tài khoản:\* 11111/);
+  assert.match(notification,/Chủ tài khoản:\* TEST A/);
   await assert.rejects(wallet.linkBankAccount(u.id,'Bank B','22222','Test B','wallet-b'),/không thể sửa đổi/);
   const pending=await admin.getPendingTransactions();
   assert.equal(pending.find(t=>t.id===request.transaction.id).account_number,'11111');

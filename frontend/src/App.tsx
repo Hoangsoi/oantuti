@@ -15,24 +15,28 @@ import { AdminPage } from './pages/AdminPage';
 import { LobbyPage } from './pages/LobbyPage';
 import { getTelegramWebApp } from './services/telegram';
 import { api } from './services/api';
-import { startBgm } from './services/sound';
+import { startBgm, unlockAudio } from './services/sound';
 
 export const App: React.FC = () => {
   // Start BGM on user interaction (adhering to browser autoplay policy)
   useEffect(() => {
-    const handleFirstInteraction = () => {
-      startBgm();
+    const removeUnlockListeners = () => {
+      window.removeEventListener('pointerdown', handleFirstInteraction, true);
       window.removeEventListener('click', handleFirstInteraction);
-      window.removeEventListener('touchstart', handleFirstInteraction);
+      window.removeEventListener('touchend', handleFirstInteraction);
+    };
+    const handleFirstInteraction = async () => {
+      if (await unlockAudio()) {
+        startBgm();
+        removeUnlockListeners();
+      }
     };
 
+    window.addEventListener('pointerdown', handleFirstInteraction, true);
     window.addEventListener('click', handleFirstInteraction);
-    window.addEventListener('touchstart', handleFirstInteraction);
+    window.addEventListener('touchend', handleFirstInteraction);
 
-    return () => {
-      window.removeEventListener('click', handleFirstInteraction);
-      window.removeEventListener('touchstart', handleFirstInteraction);
-    };
+    return removeUnlockListeners;
   }, []);
   const {
     user,

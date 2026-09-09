@@ -112,6 +112,7 @@ export interface Transaction {
   status: 'pending' | 'approved' | 'rejected';
   memo: string | null;
   admin_note: string | null;
+  payout_details?: Partial<BankAccount> | string | null;
   created_at: Date;
 }
 

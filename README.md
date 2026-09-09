@@ -34,6 +34,7 @@ Frontend: http://localhost:5173. Backend: http://localhost:5000. Chạy thử ng
 - Mỗi khoản nạp được duyệt tạo yêu cầu doanh số cược 1×. Chỉ ván thắng hoặc thua được tính; ván hòa không tính. Khách chỉ tạo lệnh rút khi tiến độ đạt 100% và có thể xem tiến độ trong tab Rút.
 - Lịch sử ván hiển thị biến động Xu thực tế: thắng PvP là lãi ròng sau phí, thua là âm mức cược, hòa và bot miễn phí là 0 Xu.
 - Cấu hình thanh toán lưu trong DB. Tài khoản ngân hàng/ví nhận tiền của khách chỉ được liên kết một lần và không thể sửa qua ứng dụng; đích nhận của đơn rút được chụp lại khi tạo. Sổ Xu và ván đã quyết toán không thể sửa/xóa qua ứng dụng.
+- Thông báo Telegram của đơn rút kèm đầy đủ ngân hàng, số tài khoản, chủ tài khoản hoặc địa chỉ ví USDT TRC20. Âm thanh Web Audio được mở khóa từ thao tác chạm để hoạt động trên trình duyệt di động.
 
 ## Kiểm tra
 

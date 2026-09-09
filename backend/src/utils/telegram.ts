@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import https from 'https';
-import { TelegramUser, Transaction, User } from '../types';
+import { BankAccount, TelegramUser, Transaction, User } from '../types';
 import { config } from '../config';
 
 /**
@@ -125,6 +125,23 @@ export function getMockTelegramUser(customId: number = 999999): TelegramUser {
 /**
  * Sends automated notification to Admin Telegram chat via Bot API.
  */
+export function buildTelegramAdminNotification(tx: Transaction, user: User): string {
+  const isDeposit = tx.type === 'deposit';
+  if (isDeposit) {
+    return `📥 *ĐƠN NẠP TIỀN CHỜ DUYỆT!* (#${tx.id})\n\n👤 *Khách hàng:* ${user.first_name} (ID: ${user.id})\n💰 *Số tiền:* ${Number(tx.amount).toLocaleString()} ${tx.payment_method === 'usdt' ? 'USDT' : 'VNĐ'}\n🪙 *Quy đổi:* +${tx.coins.toLocaleString()} Xu\n📝 *Ghi chú:* ${tx.memo || 'Không có'}\n\n👉 *Vui lòng mở Admin Dashboard để duyệt & cộng Xu!*`;
+  }
+
+  let payout: Partial<BankAccount> | null = null;
+  if (typeof tx.payout_details === 'string') {
+    try { payout = JSON.parse(tx.payout_details) as Partial<BankAccount>; } catch { payout = null; }
+  } else if (tx.payout_details) payout = tx.payout_details;
+  const destination = tx.payment_method === 'usdt'
+    ? `🌐 *Mạng:* TRC20\n💳 *Địa chỉ ví:* ${payout?.usdt_address || 'Chưa có dữ liệu'}`
+    : `🏦 *Ngân hàng:* ${payout?.bank_name || 'Chưa có dữ liệu'}\n💳 *Số tài khoản:* ${payout?.account_number || 'Chưa có dữ liệu'}\n👤 *Chủ tài khoản:* ${payout?.account_holder || 'Chưa có dữ liệu'}`;
+
+  return `📤 *ĐƠN RÚT TIỀN CHỜ DUYỆT!* (#${tx.id})\n\n👤 *Khách hàng:* ${user.first_name} (ID: ${user.id})\n🪙 *Số Xu rút:* -${tx.coins.toLocaleString()} Xu\n💵 *Thực nhận:* ${Number(tx.amount).toLocaleString()} ${tx.payment_method === 'usdt' ? 'USDT' : 'VNĐ'}\n\n${destination}\n\n👉 *Vui lòng kiểm tra và duyệt chuyển tiền cho khách!*`;
+}
+
 export async function sendTelegramAdminNotification(tx: Transaction, user: User) {
   const botToken = config.botToken;
   const adminChatId = config.adminTelegramId || '8780377211';
@@ -134,10 +151,7 @@ export async function sendTelegramAdminNotification(tx: Transaction, user: User)
     return;
   }
 
-  const isDeposit = tx.type === 'deposit';
-  const text = isDeposit
-    ? `📥 *ĐƠN NẠP TIỀN CHỜ DUYỆT!* (#${tx.id})\n\n👤 *Khách hàng:* ${user.first_name} (ID: ${user.id})\n💰 *Số tiền:* ${Number(tx.amount).toLocaleString()} ${tx.payment_method === 'usdt' ? 'USDT' : 'VNĐ'}\n🪙 *Quy đổi:* +${tx.coins.toLocaleString()} Xu\n📝 *Ghi chú:* ${tx.memo || 'Không có'}\n\n👉 *Vui lòng mở Admin Dashboard để duyệt & cộng Xu!*`
-    : `📤 *ĐƠN RÚT TIỀN CHỜ DUYỆT!* (#${tx.id})\n\n👤 *Khách hàng:* ${user.first_name} (ID: ${user.id})\n🪙 *Số Xu rút:* -${tx.coins.toLocaleString()} Xu\n💵 *Thực nhận:* ${Number(tx.amount).toLocaleString()} ${tx.payment_method === 'usdt' ? 'USDT' : 'VNĐ'}\n\n👉 *Vui lòng kiểm tra và duyệt chuyển tiền cho khách!*`;
+  const text = buildTelegramAdminNotification(tx, user);
 
   try {
     const postData = JSON.stringify({
