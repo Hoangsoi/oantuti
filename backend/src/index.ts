@@ -3,7 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { config, validateConfig } from './config';
 import { isAllowedOrigin } from './config/cors';
-import { assertDatabaseReady } from './database';
+import { initDatabase } from './database';
 import { startRoomMaintenance } from './services/room.service';
 import apiRoutes from './routes';
 import { errorHandlerMiddleware } from './middleware/error.middleware';
@@ -51,7 +51,10 @@ import { startTelegramBot } from './services/bot.service';
 // Boot server
 async function startServer() {
   validateConfig();
-  await assertDatabaseReady();
+  // Keep deployments resilient when the hosting platform does not run the
+  // configured pre-deploy command. initDatabase is idempotent and uses a
+  // transaction-scoped advisory lock, so concurrent starts cannot race.
+  await initDatabase();
 
   app.listen(config.port, () => {
     console.log(`🚀 Máy chủ OẲN TÙ TÌ Backend đang chạy tại port ${config.port}`);
